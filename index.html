@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión SCO - Continuidad Operativa</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+
+    <div class="wrapper">
+        <nav class="sidebar">
+            <div class="sidebar-header" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px 10px; text-align: center;">
+                <img src="logo-empresa.png" alt="Logo Fcom" class="logo-img" style="max-width: 150px; height: auto; display: block;">
+                <span class="header-text" style="margin-top: 5px; color: white; font-weight: bold; font-size: 1.1rem; letter-spacing: 1px;">
+                    SCO PJUD
+                </span>
+            </div>      
+            <ul class="nav-links">
+                <li class="active" onclick="showModule('coordinacion')">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span class="link_name">Coordinación</span>
+                </li>
+                <li onclick="showModule('guias')">
+                    <i class="fas fa-file-invoice"></i>
+                    <span class="link_name">Formatos</span>
+                </li>
+                <li onclick="showModule('reportes')">
+                    <i class="fas fa-chart-bar"></i>
+                    <span class="link_name">Reportes</span>
+                </li>
+                <li onclick="showModule('registros')">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span class="link_name">Registros</span>
+                </li>
+                <li onclick="showModule('enlaces')">
+                    <i class="fas fa-link"></i>
+                    <span class="link_name">Enlaces</span>
+                </li>
+                <li onclick="showModule('otros')">
+                    <i class="fas fa-boxes"></i>
+                    <span class="link_name">Otros Módulos</span>
+                </li>
+            </ul>
+
+            <button class="btn-logout" onclick="logout()">
+                <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+            </button>
+        </nav>
+
+        <main class="content">
+            
+            <div id="mod-coordinacion" class="module">
+                <h1>Panel de Coordinación SCO</h1>
+                
+                <div class="card">
+                    <div class="input-group" style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px; background: white; padding: 10px; border-radius: 5px; border: 1px solid #ccc;">
+                        
+                        <label for="csv-file" style="font-weight: bold; color: #555;">
+                            <i class="fas fa-file-csv" style="color: #198754;"></i> Adjuntar Reporte Manual:
+                        </label>
+                        <input type="file" id="csv-file" accept=".csv, .txt" style="flex: 1;">
+                    </div>
+
+                    <div class="actions-group" style="display: flex; gap: 10px; align-items: center;">
+                        <select id="group-filter" class="glass-input" style="max-width: 150px; cursor: pointer; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
+                            <option value="SCO" selected>Solo SCO</option>
+                            <option value="MDA">Solo MDA</option>
+                            <option value="RESIDENTES">Solo Residentes</option>
+                            <option value="TODOS">Ver Todos</option>
+                        </select>
+                        <button onclick="processData()" class="btn-primary">
+                            <i class="fas fa-cogs"></i> Procesar Tickets
+                        </button>
+                        <button onclick="clearData()" class="btn-secondary">
+                            <i class="fas fa-trash-alt"></i> Limpiar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <table id="tickets-table">
+                        <thead>
+                            <tr>
+                                <th>Proyecto</th><th>Ticket</th><th>Estado</th><th>Grupo</th><th>Dependencia</th>
+                                <th style="background-color: #f0f8ff;">Fecha/Hora</th><th style="background-color: #f0f8ff;">Técnico</th>
+                                <th style="text-align:center;">Backup</th><th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <div class="card hidden" id="coord-editor" style="border: none; box-shadow: none; padding: 0;">
+                    <div class="pjud-header-toggle" onclick="toggleSection('editor-body', 'icon-editor')">
+                        <h3 id="editing-title">Gestión de Ticket</h3>
+                        <i id="icon-editor" class="fas fa-chevron-up rotate-icon"></i>
+                    </div>
+                    <div id="editor-body" style="border: 1px solid #ddd; padding: 20px; border-radius: 0 0 5px 5px; background: white;">
+                        <div class="coord-row-inline" style="display: flex; gap: 10px; align-items: flex-end;">
+                            <div class="input-group-small"><label><i class="far fa-calendar-alt"></i> Fecha Atención</label><input type="date" id="coord-date"></div>
+                            <div class="input-group-small"><label><i class="far fa-clock"></i> Hora Aprox.</label><input type="time" id="coord-time"></div>
+                            <div class="input-group-small" style="flex: 2;">
+                                <label><i class="fas fa-user-cog"></i> Técnico Asignado</label>
+                                <select id="tech-name"><option value="">Seleccione un técnico...</option></select>
+                            </div>
+                            <button class="btn-primary" onclick="saveTicketCoordination()" style="background-color: #28a745; height: 38px; padding: 0 15px; margin-bottom: 1px;"><i class="fas fa-save"></i> Guardar</button>
+                        </div>
+                        <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+                        <div class="button-actions-group">
+                            <button class="btn-whatsapp" onclick="generateWhatsApp()"><i class="fab fa-whatsapp"></i> WhatsApp Técnico</button>
+                            <button class="btn-outlook" onclick="generateEmail()"><i class="fas fa-envelope"></i> Correo Usuario</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card hidden" id="result-container">
+                    <h3 id="result-type-title" style="margin-bottom:15px;">Resultado Generado</h3>
+                    <div id="text-preview"></div>
+                </div>
+            </div>
+            
+            <div id="mod-registros" class="module hidden">
+                <h1>Registros y Planillas Online</h1>
+                <div class="tabs-container">
+                    <button class="tab-btn active" onclick="switchSheetTab('sheet-1', this)"><i class="fas fa-clipboard-list"></i> Registro Principal</button>
+                </div>
+                <div id="sheet-1" class="sheet-content active-content">
+                    <div class="card" style="padding: 0; overflow: hidden; height: 80vh; border: 1px solid #ccc;">
+                        <iframe src="https://docs.google.com/spreadsheets/d/1kFRvMmyHom4APfhVqmdvHg_wSkKPH8Y0eJ5Z6HnVeq0/edit?rm=minimal" style="width: 100%; height: 100%; border: none;" allow="autoplay"></iframe>
+                    </div>
+                </div>
+            </div>
+
+            <div id="mod-guias" class="module hidden">
+                <h1>Formatos Para Gestión </h1>
+                
+                <div class="tabs-container">
+                    <button class="tab-btn active" onclick="switchFormatTab('tab-guias', this)"><i class="fas fa-file-invoice"></i> Guías y SII</button>
+                    <button class="tab-btn" onclick="switchFormatTab('tab-plantillas', this)"><i class="fas fa-file-word"></i> Plantillas Descargables</button>
+                </div>
+
+                <div id="tab-guias" class="tab-content active-content">
+                    <div class="card" style="margin-bottom: 20px; border-left: 4px solid #007bff; background-color: #fcfcfc; padding: 0;">
+                        <div class="pjud-header-toggle" onclick="toggleSection('sii-quick-content', 'icon-sii')" style="padding: 15px; display: flex; justify-content: space-between; align-items: center; border-radius: 5px; cursor: pointer;">
+                            <div>
+                                <h4 style="margin: 0; color: #014f8b;"><i class="fas fa-file-invoice"></i> Acceso Rápido SII (Guías de Despacho)</h4>
+                                <p style="margin: 5px 0 0 0; font-size: 0.85rem; color: #666;">Credenciales para emisión de documentos tributarios.</p>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <a href="https://zeus.sii.cl/AUT2000/InicioAutenticacion/IngresoRutClave.html" target="_blank" onclick="event.stopPropagation()" class="btn-primary" style="text-decoration: none; padding: 8px 15px; background-color: #007bff; border-color: #007bff;"><i class="fas fa-external-link-alt"></i> Abrir Portal SII</a>
+                                <i id="icon-sii" class="fas fa-chevron-down" style="color: #014f8b; font-size: 1.2rem;"></i>
+                            </div>
+                        </div>
+
+                        <div id="sii-quick-content" class="hidden-content" style="padding: 0 15px 15px 15px; border-top: 1px solid #eee;">
+                            <div style="display: flex; gap: 15px; margin-top: 15px; flex-wrap: wrap;">
+                                <div style="background: white; border: 1px solid #ddd; padding: 10px; border-radius: 5px; flex: 1; min-width: 180px; display: flex; justify-content: space-between; align-items: center;">
+                                    <div><strong style="color: #555; font-size: 0.8rem; display: block;">RUT Empresa</strong><span style="font-family: monospace; font-size: 0.95rem; color: #222;">10247846-0</span></div>
+                                    <button onclick="copiarTextoDirecto('10247846-0')" class="btn-copy-small" title="Copiar RUT"><i class="fas fa-copy"></i></button>
+                                </div>
+                                <div style="background: white; border: 1px solid #ddd; padding: 10px; border-radius: 5px; flex: 1; min-width: 180px; display: flex; justify-content: space-between; align-items: center;">
+                                    <div><strong style="color: #555; font-size: 0.8rem; display: block;">Clave SII</strong>
+                                        <div style="display: flex; align-items: center; gap: 5px;">
+                                            <span id="quick-clave-sii" style="font-family: monospace; font-size: 0.95rem; color: #222;">••••••••</span>
+                                            <button onclick="toggleSecret('quick-clave-sii', 'Leonera7')" style="border:none; background:transparent; cursor:pointer; color:#888; padding: 0;"><i id="icon-quick-clave-sii" class="fas fa-eye"></i></button>
+                                        </div>
+                                    </div>
+                                    <button onclick="copiarTextoDirecto('Leonera7')" class="btn-copy-small" title="Copiar Clave"><i class="fas fa-copy"></i></button>
+                                </div>
+                                <div style="background: white; border: 1px solid #ddd; padding: 10px; border-radius: 5px; flex: 1; min-width: 180px; display: flex; justify-content: space-between; align-items: center;">
+                                    <div><strong style="color: #555; font-size: 0.8rem; display: block;">Clave Firma Digital</strong>
+                                        <div style="display: flex; align-items: center; gap: 5px;">
+                                            <span id="quick-firma-sii" style="font-family: monospace; font-size: 0.95rem; color: #222;">••••••••</span>
+                                            <button onclick="toggleSecret('quick-firma-sii', 'Leon3ra7#')" style="border:none; background:transparent; cursor:pointer; color:#888; padding: 0;"><i id="icon-quick-firma-sii" class="fas fa-eye"></i></button>
+                                        </div>
+                                    </div>
+                                    <button onclick="copiarTextoDirecto('Leon3ra7#')" class="btn-copy-small" title="Copiar Firma"><i class="fas fa-copy"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <p style="margin-bottom: 15px;">Ingrese el número de requerimiento para generar el formato de Guias:</p>
+                        <div class="coord-row-inline" style="align-items: flex-end;">
+                            <div class="input-group-small" style="flex: 1;"><label><i class="fas fa-search"></i> Número de Ticket</label><input type="text" id="tk-guia-input" placeholder="Ej: 2355443"></div>
+                            <button class="btn-primary" onclick="buscarTicketParaGuia()" style="height: 38px; margin-bottom: 4px;"><i class="fas fa-file-medical"></i> Generar Guía</button>
+                        </div>
+                    </div>
+                    <div id="guia-result-container" class="hidden" style="margin-top: 20px;"></div>
+                </div>
+
+                <div id="tab-plantillas" class="tab-content hidden-content">
+                    <div class="card">
+                        <p style="color: #666; margin-bottom: 20px;">Descarga los formatos editables en Word para diversas gestiones.</p>
+                        <div style="overflow-x: auto;">
+                            <table style="width: 100%; border-collapse: collapse; font-family: Segoe UI, sans-serif;">
+                                <thead style="background-color: #f8f9fa; color: #444; border-bottom: 2px solid #ddd;">
+                                    <tr>
+                                        <th style="padding: 12px; text-align: left; width: 30%;">FORMATO</th>
+                                        <th style="padding: 12px; text-align: left; width: 50%;">DESCRIPCIÓN</th>
+                                        <th style="padding: 12px; text-align: center; width: 20%;">ACCIÓN</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr style="border-bottom: 1px solid #eee;">
+                                        <td style="padding: 15px; font-weight: bold; color: #014f8b;"><i class="fas fa-file-word" style="color: #2b579a; margin-right: 5px;"></i> Autorización de 3ero - Retiro</td>
+                                        <td style="padding: 15px; color: #555; font-size: 0.9rem;">Documento para autorizar a un 3ero a Retirar un equipo enviado por courrier a una sucursal.</td>
+                                        <td style="padding: 15px; text-align: center;">
+                                            <a href="Autorizacion_Retiros.docx" download class="btn-primary" style="text-decoration: none; background-color: #2b579a; border-color: #1e3f6f; padding: 6px 12px; font-size: 0.85rem;"><i class="fas fa-download"></i> Descargar</a>
+                                        </td>
+                                    </tr>
+                                    <tr style="border-bottom: 1px solid #eee;">
+                                        <td style="padding: 15px; font-weight: bold; color: #014f8b;"><i class="fas fa-file-word" style="color: #2b579a; margin-right: 5px;"></i> Autorizacion Migracion Disco Externo</td>
+                                        <td style="padding: 15px; color: #555; font-size: 0.9rem;">Acta de autorización y conformidad para el respaldo y traspaso de información (Data) del usuario, mediante uso de Disco Externo (Solo PJUD5).</td>
+                                        <td style="padding: 15px; text-align: center;">
+                                            <a href="Autorizacion_TraspasoData.docx" download class="btn-primary" style="text-decoration: none; background-color: #2b579a; border-color: #1e3f6f; padding: 6px 12px; font-size: 0.85rem;"><i class="fas fa-download"></i> Descargar</a>
+                                        </td>
+                                    </tr>
+                                    <tr style="border-bottom: 1px solid #eee;">
+                                        <td style="padding: 15px; font-weight: bold; color: #014f8b;">
+                                            <i class="fas fa-file-alt" style="color: #2b579a; margin-right: 5px;"></i> Red de Servicios - Rendición
+                                        </td>
+                                        <td style="padding: 15px; color: #555; font-size: 0.9rem;">
+                                            Esta plantilla/texto es para enviar a Red de Servicio cuando deba rendir una actividad para que se le efectúe su pago.
+                                        </td>
+                                        <td style="padding: 15px; text-align: center;">
+                                            <button onclick="copiarTextoRendicion()" class="btn-primary" style="cursor: pointer; border: none; background-color: #2b579a; color: white; padding: 6px 12px; font-size: 0.85rem; border-radius: 4px;">
+                                                <i class="fas fa-copy"></i> Copiar Texto
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="mod-reportes" class="module hidden">
+                <h1>Generación de Reportes</h1>
+                <div class="tabs-container">
+                    <button class="tab-btn active" onclick="switchReportTab('tab-informativo', this)"><i class="fas fa-tools"></i> Informativo Técnico</button>
+                    <button class="tab-btn" onclick="switchReportTab('tab-cambios', this)"><i class="fas fa-exchange-alt"></i> Control de Cambios</button>
+                    <button class="tab-btn" onclick="switchReportTab('tab-antivirus', this)"><i class="fas fa-shield-alt"></i> Reporte Antivirus</button>
+                    <button class="tab-btn" onclick="switchReportTab('tab-guias-pendientes', this)"><i class="fas fa-file-invoice"></i> Guías Pendientes</button>
+                    <button class="tab-btn" onclick="switchReportTab('tab-en-blanco', this)" style="border-left: 2px solid #6c757d;"><i class="fas fa-eraser"></i> En blanco</button>
+                </div>
+
+                <div id="tab-informativo" class="tab-content active-content">
+                    <div class="card">
+                        <p style="margin-bottom: 15px;">Genera un correo resumen con todas las actividades cargadas actualmente en el sistema.</p>
+                        <div class="coord-row-inline">
+                            <div class="input-group-small"><label>Nombre Coordinadora</label><input type="text" id="info-coord-name" value="Susana Guzman"></div>
+                            <button class="btn-primary" onclick="generarInformativoTecnico()"><i class="fas fa-list-alt"></i> Generar Informativo</button>
+                        </div>
+                    </div>
+                    <div id="info-result-container" class="card hidden" style="margin-top: 20px; border: none; padding: 0;"></div>
+                </div>
+
+                <div id="tab-cambios" class="tab-content hidden-content">
+                    <div class="card">
+                        <p style="margin-bottom: 10px; color: #666;">Genera reporte de tickets <strong>FINALIZADOS</strong> con <strong>CAMBIO DE EQUIPO</strong> (Backup: SI).</p>
+                        <div class="coord-row-inline" style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; border: 1px solid #ddd; margin-bottom: 15px;">
+                            <div class="input-group-small" style="flex: 1;"><label><i class="fas fa-folder"></i> Proyecto</label>
+                                <select id="filtro-proyecto" style="width: 100%; padding: 5px;">
+                                    <option value="TODOS">Todos los Proyectos</option><option value="PJUD 4">PJUD 4</option><option value="PJUD 5">PJUD 5</option>
+                                </select>
+                            </div>
+                            <div class="input-group-small"><label><i class="far fa-calendar-alt"></i> Desde</label><input type="date" id="filtro-fecha-inicio"></div>
+                            <div class="input-group-small"><label><i class="far fa-calendar-alt"></i> Hasta</label><input type="date" id="filtro-fecha-fin"></div>
+                            <div style="flex: 2; display: flex; align-items: flex-end; gap: 10px;">
+                                <button class="btn-primary" onclick="generarReporteCambios()"><i class="fas fa-filter"></i> Generar</button>
+                                <button class="btn-primary" onclick="copiarTablaCambios()" style="background-color: #198754; border-color: #198754;"><i class="fas fa-copy"></i> Excel</button>
+                            </div>
+                        </div>
+                        <p style="font-size: 0.8rem; color: #999;">* Si dejas las fechas vacías, se mostrará todo el historial del proyecto seleccionado.</p>
+                    </div>
+                    <div id="cambios-result-container" class="card hidden" style="margin-top: 20px; overflow-x: auto;"></div>
+                </div>
+
+                <div id="tab-antivirus" class="tab-content hidden-content">
+                    <div class="card">
+                        <p style="margin-bottom: 10px; color: #666;">Genera reporte de tickets <strong>FINALIZADOS</strong> de grupos <strong>SCO y RESIDENTES</strong> para un día específico.</p>
+                        <div class="coord-row-inline" style="background-color: #e3f2fd; padding: 15px; border-radius: 5px; border: 1px solid #90caf9; margin-bottom: 15px;">
+                            <div class="input-group-small" style="max-width: 200px;"><label><i class="far fa-calendar-alt"></i> Fecha del Reporte</label><input type="date" id="av-fecha-unica"></div>
+                            <div style="flex: 2; display: flex; align-items: flex-end; gap: 10px;">
+                                <button class="btn-primary" onclick="generarReporteAntivirus()"><i class="fas fa-filter"></i> Generar Reporte</button>
+                                <button class="btn-primary" onclick="copiarTablaAntivirus()" style="background-color: #198754; border-color: #198754;"><i class="fas fa-copy"></i> Copiar</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="antivirus-result-container" class="card hidden" style="margin-top: 20px; overflow-x: auto;"></div>
+                </div>
+
+                <div id="tab-guias-pendientes" class="tab-content hidden-content">
+                    <div class="card">
+                        <p style="margin-bottom: 10px; color: #666;">Lista de tickets finalizados con <strong>Backup: SI</strong> y <strong>Guía de Retiro: NO</strong>.</p>
+                        <div class="coord-row-inline" style="background-color: #fff3cd; padding: 15px; border-radius: 5px; border: 1px solid #ffecb5; margin-bottom: 15px;">
+                            <div class="input-group-small" style="max-width: 250px;"><label><i class="fas fa-users"></i> Filtrar Grupo</label>
+                                <select id="filtro-grupo-guias">
+                                    <option value="TODOS">Todos (SCO + Residentes)</option><option value="SCO">Solo SCO</option><option value="RESIDENTES">Solo Residentes</option>
+                                </select>
+                            </div>
+                            <div style="flex: 2; display: flex; align-items: flex-end; gap: 10px;">
+                                <button class="btn-primary" onclick="generarReporteGuiasPendientes()" style="background-color: #ffc107; color: #000; border: 1px solid #e0a800;"><i class="fas fa-search"></i> Buscar Pendientes</button>
+                                <button class="btn-primary" onclick="copiarTablaGuiasPendientes()" style="background-color: #198754; border-color: #198754;"><i class="fas fa-copy"></i> Copiar Tabla</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="guias-pendientes-result" class="card hidden" style="margin-top: 20px; overflow-x: auto;"></div>
+                </div>
+
+                <div id="tab-en-blanco" class="tab-content hidden-content">
+                    <div class="card p-4 shadow-sm" style="border-top: 4px solid #6c757d; border-radius: 8px;">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 style="color: #495057; margin: 0;"><i class="fas fa-file-invoice text-muted me-2"></i> Reporte de Requerimientos sin Rellenar</h5>
+                            <span class="badge bg-secondary" style="font-size: 0.8rem; padding: 5px 10px; border-radius: 4px; background-color: #6c757d; color: white;">Auditoría Técnica</span>
+                        </div>
+                        <p class="text-muted small">Este reporte identifica tickets finalizados donde el <strong>Tipo de Equipo</strong> o el <strong>Modelo</strong> no fueron registrados correctamente por el técnico.</p>
+                        <div class="coord-row-inline" style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; border: 1px solid #ddd; margin-bottom: 15px;">
+                            <div class="input-group-small"><label>Fecha Inicio (Finalización)</label><input type="date" id="blanco-fecha-inicio"></div>
+                            <div class="input-group-small"><label>Fecha Fin (Finalización)</label><input type="date" id="blanco-fecha-fin"></div>
+                            <div style="flex: 2; display: flex; align-items: flex-end; gap: 10px;">
+                                <button class="btn-primary" onclick="generarReporteEnBlanco()"><i class="fas fa-search"></i> Buscar Casos</button>
+                                <button class="btn-primary" onclick="exportarReporteBlancoExcel()" style="background-color: #198754; border-color: #198754;"><i class="fas fa-download"></i> Exportar Excel</button>
+                                <button class="btn-secondary" onclick="document.getElementById('blanco-result-container').innerHTML=''; document.getElementById('blanco-result-container').classList.add('hidden');"><i class="fas fa-trash-alt"></i> Limpiar</button>
+                            </div>
+                        </div>
+                        <div id="blanco-result-container" class="hidden mt-3" style="min-height: 100px;"></div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div id="mod-enlaces" class="module hidden">
+                <h1>Biblioteca de Accesos y Recursos</h1>
+                <div class="tabs-container" style="display: flex; gap: 10px; margin-bottom: 0;">
+                    <button class="tab-btn active" style="border-bottom: 3px solid #014f8b; color: #014f8b; font-weight: bold; padding: 10px 20px; background: white; border: 1px solid #ddd; border-bottom: none; border-radius: 5px 5px 0 0;"><i class="fas fa-list"></i> Listado General</button>
+                </div>
+                <div class="card" style="border-top: 3px solid #014f8b; border-radius: 0 5px 5px 5px; margin-top: -1px;">
+                    <p style="color: #666; margin-bottom: 20px;">Acceso rápido a plataformas externas, documentación y credenciales compartidas.</p>
+                    <div style="overflow-x: auto;">
+                        <table id="tabla-enlaces" style="width: 100%; border-collapse: collapse; font-family: Segoe UI, sans-serif;">
+                            <thead style="background-color: #f8f9fa; color: #444; border-bottom: 2px solid #ddd;">
+                                <tr>
+                                    <th style="padding: 12px; text-align: left; width: 40%;">DESCRIPCIÓN / USO</th>
+                                    <th style="padding: 12px; text-align: center; width: 15%;">ENLACE</th>
+                                    <th style="padding: 12px; text-align: left; width: 45%;">CREDENCIALES / NOTAS</th>
+                                </tr>
+                            </thead>
+                            <tbody id="body-enlaces"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="mod-otros" class="module hidden"><h1>Otros Módulos </h1></div>
+        </main>
+    </div>
+
+    <div id="toast-container" class="toast-hidden">
+        <i class="fas fa-check-circle"></i> <span id="toast-message">Copiado al portapapeles</span>
+    </div>
+
+    <script src="script.js"></script>
+
+    <script>
+    (function(){if(!window.chatbase||window.chatbase("getState")!=="initialized"){window.chatbase=(...arguments)=>{if(!window.chatbase.q){window.chatbase.q=[]}window.chatbase.q.push(arguments)};window.chatbase=new Proxy(window.chatbase,{get(target,prop){if(prop==="q"){return target.q}return(...args)=>target(prop,...args)}})}const onLoad=function(){const script=document.createElement("script");script.src="https://www.chatbase.co/embed.min.js";script.id="fqZGLM-qPO7qIULZRykqc";script.domain="www.chatbase.co";document.body.appendChild(script)};if(document.readyState==="complete"){onLoad()}else{window.addEventListener("load",onLoad)}})();
+    </script>
+</body>
+</html>
