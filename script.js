@@ -193,17 +193,24 @@ function processData() {
                 }
                 const tecnicoDisplay = ticket.tecnicoCoord ? `<span style="font-size:0.85em; font-weight:600;">${ticket.tecnicoCoord}</span>` : "-";
 
-                const tr = document.createElement('tr');
+            const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td style="color: var(--hp-blue); font-weight: bold;">${ticket.proyecto || 'N/A'}</td>
                     <td><b>${ticket.num}</b></td>
                     <td><span class="status-pill" style="${statusStyle}">${ticket.estado}</span></td>
                     <td style="font-size: 0.8rem; color: #666;">${ticket.grupo}</td>
-                    <td>${ticket.dependencia} <br><small style="color: #999;">(${ticket.jurisdiccion})</small></td>
+                    <td style="font-size: 0.8rem; color: #333; font-weight: 600;">${ticket.tipo}</td> <td>${ticket.dependencia} <br><small style="color: #999;">(${ticket.jurisdiccion})</small></td>
                     <td style="text-align:center; background-color: #f9fcff;">${fechaDisplay}</td>
                     <td style="text-align:center; background-color: #f9fcff;">${tecnicoDisplay}</td>
                     <td style="text-align:center;">${ticket.backup}</td>
-                    <td><button class="btn-primary" style="padding: 5px 10px; font-size: 0.8rem;" onclick="openCoordEditor(${ticketIndex})">Gestionar</button></td>
+                    <td>
+                        <div style="display: flex; gap: 5px; justify-content: center;">
+                            <button class="btn-primary" style="padding: 5px 10px; font-size: 0.8rem;" onclick="openCoordEditor(${ticketIndex})">Gestionar</button>
+                            <button class="btn-secondary" style="padding: 5px 10px; font-size: 0.8rem; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;" onclick="clearTicketCoordination('${ticket.num}', this)" title="Limpiar Coordinación">
+                                <i class="fas fa-eraser"></i>
+                            </button>
+                        </div>
+                    </td>
                 `;
                 if(tableBody) tableBody.appendChild(tr);
             }
@@ -257,6 +264,7 @@ function openCoordEditor(index) {
 
 
 // --- 5. FUNCIÓN GUARDAR COMPLETAMENTE REESCRITA Y A PRUEBA DE FALLOS ---
+// --- FUNCIÓN GUARDAR ACTUALIZADA (CORRECCIÓN DE COLUMNAS) ---
 function saveTicketCoordination() {
     if (!selectedTicketData) {
         showToast("⚠️ No hay ningún ticket seleccionado.");
@@ -277,7 +285,7 @@ function saveTicketCoordination() {
     selectedTicketData.horaCoord = horaInput;
     selectedTicketData.tecnicoCoord = techInput;
 
-    // 2. Guardar en memoria de Navegador (Con try-catch para evitar bloqueos locales)
+    // 2. Guardar en memoria de Navegador (Con try-catch)
     try {
         let savedCoords = JSON.parse(localStorage.getItem('sco_coordinations') || '{}');
         savedCoords[selectedTicketData.num] = {
@@ -290,7 +298,7 @@ function saveTicketCoordination() {
         console.warn("Memoria caché bloqueada, guardado solo por sesión.", e);
     }
 
-    // 3. Pintar en la tabla usando el Número de Ticket directamente del HTML
+    // 3. Pintar en la tabla corrigiendo el desfase de la nueva columna
     try {
         const tableBody = document.querySelector('#tickets-table tbody');
         const filas = tableBody.querySelectorAll('tr');
@@ -304,21 +312,19 @@ function saveTicketCoordination() {
                 const partes = fechaInput.split('-'); 
                 const fechaFormateada = partes.length === 3 ? `${partes[2]}-${partes[1]}-${partes[0]}` : fechaInput;
                 
-                fila.children[5].innerHTML = `<span style="color:#007bff; font-weight:bold;">${fechaFormateada}</span><br><small>${horaInput}</small>`;
-                fila.children[6].innerHTML = `<span style="font-size:0.85em; font-weight:600;">${techInput}</span>`;
+                // NOTA: Se actualizó a las columnas 6 (Fecha) y 7 (Técnico)
+                fila.children[6].innerHTML = `<span style="color:#007bff; font-weight:bold;">${fechaFormateada}</span><br><small>${horaInput}</small>`;
+                fila.children[7].innerHTML = `<span style="font-size:0.85em; font-weight:600;">${techInput}</span>`;
                 
-                fila.style.backgroundColor = "#d4edda"; // Color verde de éxito
+                fila.style.backgroundColor = "#d4edda";
                 setTimeout(() => fila.style.backgroundColor = "", 800);
                 encontrado = true;
                 break;
             }
         }
 
-        if (encontrado) {
-            showToast(`✅ Guardado exitoso para TK ${selectedTicketData.num}`);
-        } else {
-            showToast("✅ Guardado en memoria (Fila visual no encontrada).");
-        }
+        if (encontrado) showToast(`✅ Guardado exitoso para TK ${selectedTicketData.num}`);
+        else showToast("✅ Guardado en memoria.");
     } catch (e) {
         console.error("Error pintando la tabla:", e);
         showToast("✅ Guardado exitosamente.");
@@ -327,6 +333,8 @@ function saveTicketCoordination() {
 
 
 // --- 6. GENERACIÓN DE MENSAJES (CORREO / WHATSAPP) ---
+// --- 5. GENERACIÓN DE MENSAJES (CORREO / WHATSAPP) ---
+// --- 5. GENERACIÓN DE MENSAJES (CORREO / WHATSAPP) ---
 function generateEmail() {
     if (!selectedTicketData) return;
 
@@ -354,17 +362,35 @@ function generateEmail() {
     const nombreCompleto = selectedTicketData.usuario || "Usuario";
     const primerNombre = nombreCompleto.trim().split(' ')[0];
 
+    // --- LÓGICA CORREGIDA PARA EXTRAER LA SERIE DESPACHADA ---
+    let serieDespachada = "Pendiente / No registrada";
+    const rawDespacho = selectedTicketData.despachosRaw || "";
+    
+    // Verificamos si tiene el formato correcto con los dos puntos (:) Ej: Desktop:MXL9123N1H:SI|
+    if (rawDespacho.includes(":")) {
+        const parts = rawDespacho.split(":");
+        if (parts.length >= 2) {
+            serieDespachada = parts[1].trim(); // Extrae lo que está en medio de los ':'
+        }
+    }
+
+    // --- TABLA ESTILIZADA MÁS PEQUEÑA Y COMPACTA ---
     const tablaEstilizada = `
-    <table style="border-collapse: collapse; width: 100%; max-width: 400px; font-family: Segoe UI, Calibri, Arial, sans-serif; border: 1px solid #014f8b; font-size: 0.85rem;">
-        <thead><tr><th colspan="2" style="background-color: #014f8b; color: #ffffff !important; padding: 8px; text-align: center; font-size: 0.9rem;">DETALLE DE COORDINACIÓN</th></tr></thead>
+    <table style="border-collapse: collapse; width: 100%; max-width: 350px; font-family: Segoe UI, Calibri, Arial, sans-serif; border: 1px solid #014f8b; font-size: 11px;">
+        <thead><tr><th colspan="2" style="background-color: #014f8b; color: #ffffff !important; padding: 5px; text-align: center; font-size: 12px;">DETALLE DE COORDINACIÓN</th></tr></thead>
         <tbody>
-            <tr style="background-color: #f2f2f2;"><td style="padding: 6px; border: 1px solid #ddd; font-weight: bold; width: 35%;">TICKET</td><td style="padding: 6px; border: 1px solid #ddd;">${selectedTicketData.num}</td></tr>
-            <tr><td style="padding: 6px; border: 1px solid #ddd; font-weight: bold;">PROYECTO</td><td style="padding: 6px; border: 1px solid #ddd;">${selectedTicketData.proyecto}</td></tr>
-            <tr style="background-color: #f2f2f2;"><td style="padding: 6px; border: 1px solid #ddd; font-weight: bold;">DEPENDENCIA</td><td style="padding: 6px; border: 1px solid #ddd;">${selectedTicketData.dependencia}</td></tr>
-            <tr><td style="padding: 6px; border: 1px solid #ddd; font-weight: bold;">ACTIVIDAD</td><td style="padding: 6px; border: 1px solid #ddd;">${actividad}</td></tr>
-            <tr style="background-color: #f2f2f2;"><td style="padding: 6px; border: 1px solid #ddd; font-weight: bold;">FECHA</td><td style="padding: 6px; border: 1px solid #ddd;">${date}</td></tr>
-            <tr><td style="padding: 6px; border: 1px solid #ddd; font-weight: bold;">HORA</td><td style="padding: 6px; border: 1px solid #ddd;">${time}</td></tr>
-            <tr style="background-color: #f2f2f2;"><td style="padding: 6px; border: 1px solid #ddd; font-weight: bold;">TÉCNICO</td><td style="padding: 6px; border: 1px solid #ddd;">${tech}</td></tr>
+            <tr style="background-color: #f2f2f2;"><td style="padding: 4px 6px; border: 1px solid #ddd; font-weight: bold; width: 35%;">TICKET</td><td style="padding: 4px 6px; border: 1px solid #ddd;">${selectedTicketData.num}</td></tr>
+            <tr><td style="padding: 4px 6px; border: 1px solid #ddd; font-weight: bold;">PROYECTO</td><td style="padding: 4px 6px; border: 1px solid #ddd;">${selectedTicketData.proyecto}</td></tr>
+            <tr style="background-color: #f2f2f2;"><td style="padding: 4px 6px; border: 1px solid #ddd; font-weight: bold;">DEPENDENCIA</td><td style="padding: 4px 6px; border: 1px solid #ddd;">${selectedTicketData.dependencia}</td></tr>
+            <tr><td style="padding: 4px 6px; border: 1px solid #ddd; font-weight: bold;">ACTIVIDAD</td><td style="padding: 4px 6px; border: 1px solid #ddd;">${actividad}</td></tr>
+            
+            <tr style="background-color: #f2f2f2;"><td style="padding: 4px 6px; border: 1px solid #ddd; font-weight: bold;">TIPO EQUIPO</td><td style="padding: 4px 6px; border: 1px solid #ddd;">${selectedTicketData.tipo}</td></tr>
+            <tr><td style="padding: 4px 6px; border: 1px solid #ddd; font-weight: bold;">SERIE REPORTADA</td><td style="padding: 4px 6px; border: 1px solid #ddd;">${selectedTicketData.serie}</td></tr>
+            
+            
+            <tr><td style="padding: 4px 6px; border: 1px solid #ddd; font-weight: bold;">FECHA</td><td style="padding: 4px 6px; border: 1px solid #ddd;">${date}</td></tr>
+            <tr style="background-color: #f2f2f2;"><td style="padding: 4px 6px; border: 1px solid #ddd; font-weight: bold;">HORA</td><td style="padding: 4px 6px; border: 1px solid #ddd;">${time}</td></tr>
+            <tr><td style="padding: 4px 6px; border: 1px solid #ddd; font-weight: bold;">TÉCNICO</td><td style="padding: 4px 6px; border: 1px solid #ddd;">${tech}</td></tr>
         </tbody>
     </table>`;
 
@@ -389,11 +415,11 @@ function generateEmail() {
                 </div>
                 
                 <div id="email-full-content" style="background: white; padding: 15px; border: 1px solid #eee; margin-bottom: 15px;">
-                    <p style="font-family: Calibri, sans-serif; font-size: 0.9rem;">Estimado(a) ${primerNombre},<br><br>
+                    <p style="font-family: Calibri, sans-serif; font-size: 13px;">Estimado(a) ${primerNombre},<br><br>
                     Junto con saludar, informamos que se ha coordinado la atención de su requerimiento con el siguiente detalle:<br><br></p>
                     ${tablaEstilizada}
                     <br>
-                    <p style="font-family: Calibri, sans-serif; font-size: 0.75rem; color: #777; margin-top: 15px; line-height: 1.2;">
+                    <p style="font-family: Calibri, sans-serif; font-size: 11px; color: #777; margin-top: 15px; line-height: 1.2;">
                         <strong>Nota:</strong> Durante los procesos de Cambio/Masterización de Notebook y/o PC pueden surgir imprevistos que impidan el respaldo parcial o completo de la data del equipo. Se sugiere realizar un respaldo previo. HP no realiza gestiones de recuperación de data.
                     </p>
                 </div>
@@ -426,8 +452,19 @@ function generateWhatsApp() {
     const esCambio = (selectedTicketData.backup === "SI");
     const actividad = esCambio ? "CAMBIO DE EQUIPO" : "REVISIÓN / CONFIGURACION EQUIPO";
     const dir = selectedTicketData.direccion || "No especificada";
+    
+    // Extraemos los datos de equipo y series
+    const tipoEquipo = selectedTicketData.tipo || "No especificado";
+    const serieReportada = selectedTicketData.serie || "No registrada";
+    
+    // Extraemos la serie despachada (columna despachos)
+    let serieDespachada = "Pendiente Validar";
+    if (selectedTicketData.despachosRaw && selectedTicketData.despachosRaw.trim() !== "") {
+        serieDespachada = selectedTicketData.despachosRaw.trim();
+    }
 
-    const mensaje = `*TK:* ${selectedTicketData.num}\n🧰 *Tecnico:* ${tech}\n📀 *Proyecto:* ${selectedTicketData.proyecto}\n🏛️ *Tribunal:* ${selectedTicketData.dependencia}\n🏛️ *Direccion:* ${dir}\n🗓️ *Fecha:* ${date}\n⏰ *Hora:* ${time}\n📝 *Actividad:* ${actividad}\n🚨 *OBLIGATORIO:* COLOCAR LA IP EN TODAS LAS ATENCIONES\n\n⚠️ *Nota:* Revisar que la direccion sea la correcta. Descrita en la Mauweb`;
+    // Agregamos las variables al mensaje con sus emojis
+    const mensaje = `*TK:* ${selectedTicketData.num}\n🧰 *Tecnico:* ${tech}\n📀 *Proyecto:* ${selectedTicketData.proyecto}\n🏛️ *Tribunal:* ${selectedTicketData.dependencia}\n🏛️ *Direccion:* ${dir}\n🗓️ *Fecha Coordinada:* ${date}\n⏰ *Hora:* ${time}\n📝 *Actividad:* ${actividad}\n💻 *Tipo Equipo:* ${tipoEquipo}\n🏷️ *Serie Reportada:* ${serieReportada}\n📦 *Serie Despachada:* ${serieDespachada}\n🚨 *OBLIGATORIO:* COLOCAR LA IP EN TODAS LAS ATENCIONES\n\n⚠️ *Nota:* Revisar que la direccion sea la correcta. Descrita en la Mauweb`;
     
     const htmlWhatsApp = `
         <div class="card" style="border: none; padding: 0; background: transparent; margin-bottom: 20px;">
@@ -435,10 +472,8 @@ function generateWhatsApp() {
                 <h3 style="color: #0f5132;">Mensaje Técnico (WhatsApp)</h3>
                 <i id="icon-wa" class="fas fa-chevron-up rotate-icon"></i>
             </div>
-
             <div id="wa-body" style="background: white; border: 1px solid #ddd; padding: 20px; border-radius: 0 0 5px 5px;">
                 <pre id="copy-area-wa" style="background:#e9f7ef; border:1px solid var(--success-green); padding:15px; border-radius:8px; white-space:pre-wrap; min-height: 250px; max-height: none; font-family: inherit;">${mensaje}</pre>
-                
                 <div class="button-actions-group">
                     <button onclick="enviarWA('${encodeURIComponent(mensaje)}')" class="btn-whatsapp">
                         <i class="fab fa-whatsapp"></i> Enviar WhatsApp
@@ -677,6 +712,8 @@ function switchReportTab(tabId, btnElement) {
 }
 
 // --- REPORTE: INFORMATIVO TÉCNICO ---
+// --- REPORTE: INFORMATIVO TÉCNICO ACTUALIZADO (SOLO DÍA SIGUIENTE) ---
+// --- REPORTE: INFORMATIVO TÉCNICO (SÓLO SIGUIENTE DÍA HÁBIL) ---
 function generarInformativoTecnico() {
     if (currentTicketsList.length === 0) {
         showToast("⚠️ No hay tickets procesados para generar el reporte.");
@@ -688,39 +725,71 @@ function generarInformativoTecnico() {
     const para = "j.santos@fcom.cl";
     const cc = "c.zapata@fcom.cl; e.suarez@fcom.cl; e.socorro@fcom.cl; l.torres@fcom.cl; juan.diaz@fcom.cl; sandrade_fcom@pjud.cl; jchavez_hp@pjud.cl; s.guzman@fcom.cl; jmarrufo_hp@pjud.cl; f.solar@fcom.cl; svaldivieso_hp@pjud.cl; myabrudez_fcom@pjud.cl; j.riffo@fcom.cl; a.vacca@fcom.cl";
 
+    // --- LÓGICA INTELIGENTE DE "SIGUIENTE DÍA HÁBIL" ---
+    const hoy = new Date();
+    const diaObjetivo = new Date(hoy);
+    
+    if (hoy.getDay() === 5) { 
+        // Si hoy es Viernes (5), suma 3 días para llegar al Lunes
+        diaObjetivo.setDate(diaObjetivo.getDate() + 3);
+    } else if (hoy.getDay() === 6) { 
+        // Si hoy es Sábado (6), suma 2 días para llegar al Lunes
+        diaObjetivo.setDate(diaObjetivo.getDate() + 2);
+    } else {
+        // De Domingo a Jueves, suma solo 1 día
+        diaObjetivo.setDate(diaObjetivo.getDate() + 1);
+    }
+    
+    // Formatear la fecha a YYYY-MM-DD para comparar con los datos guardados
+    const yyyy = diaObjetivo.getFullYear();
+    const mm = String(diaObjetivo.getMonth() + 1).padStart(2, '0');
+    const dd = String(diaObjetivo.getDate()).padStart(2, '0');
+    const fechaObjetivoStr = `${yyyy}-${mm}-${dd}`; 
+    const fechaVisual = `${dd}/${mm}/${yyyy}`; // Para mostrar en textos
+    // ----------------------------------------------------
+
     let filasTabla = "";
+    let ticketsCount = 0;
     
     currentTicketsList.forEach(ticket => {
-        const esCambio = (ticket.backup && ticket.backup.toUpperCase().trim() === "SI");
-        const solucion = esCambio ? "CAMBIO DE EQUIPO" : "EVALUACIÓN / CONFIGURACIÓN DE EQUIPO";
-        
-        let fechaShow = "POR DEFINIR";
-        if (ticket.fechaCoord) {
+        // Solo agrega a la tabla si el ticket tiene la fecha del siguiente día hábil
+        if (ticket.fechaCoord && ticket.fechaCoord === fechaObjetivoStr) {
+            ticketsCount++;
+            
+            const esCambio = (ticket.backup && ticket.backup.toUpperCase().trim() === "SI");
+            const solucion = esCambio ? "CAMBIO DE EQUIPO" : "EVALUACIÓN / CONFIGURACIÓN DE EQUIPO";
+            
             const [y, m, d] = ticket.fechaCoord.split('-');
-            fechaShow = `${d}/${m}/${y}`;
+            let fechaShow = `${d}/${m}/${y}`;
             if (ticket.horaCoord) fechaShow += ` ${ticket.horaCoord}`;
+
+            const tecnicoShow = ticket.tecnicoCoord || "POR ASIGNAR";
+
+            filasTabla += `
+                <tr style="font-size: 11px; border-bottom: 1px solid #ddd;">
+                    <td style="padding: 4px; border: 1px solid #ccc;">${ticket.num}</td>
+                    <td style="padding: 4px; border: 1px solid #ccc;">${ticket.proyecto}</td>
+                    <td style="padding: 4px; border: 1px solid #ccc;">${ticket.modelo}</td>
+                    <td style="padding: 4px; border: 1px solid #ccc;">${ticket.serie}</td>
+                    <td style="padding: 4px; border: 1px solid #ccc;">${ticket.dependencia}</td>
+                    <td style="padding: 4px; border: 1px solid #ccc;">${ticket.tipo}</td>
+                    <td style="padding: 4px; border: 1px solid #ccc; background-color: #d1e7dd;">${fechaShow}</td>
+                    <td style="padding: 4px; border: 1px solid #ccc; background-color: #d1e7dd;">${tecnicoShow}</td>
+                    <td style="padding: 4px; border: 1px solid #ccc;">${solucion}</td>
+                </tr>
+            `;
         }
-
-        const tecnicoShow = ticket.tecnicoCoord || "POR ASIGNAR";
-
-        filasTabla += `
-            <tr style="font-size: 11px; border-bottom: 1px solid #ddd;">
-                <td style="padding: 4px; border: 1px solid #ccc;">${ticket.num}</td>
-                <td style="padding: 4px; border: 1px solid #ccc;">${ticket.proyecto}</td>
-                <td style="padding: 4px; border: 1px solid #ccc;">${ticket.modelo}</td>
-                <td style="padding: 4px; border: 1px solid #ccc;">${ticket.serie}</td>
-                <td style="padding: 4px; border: 1px solid #ccc;">${ticket.dependencia}</td>
-                <td style="padding: 4px; border: 1px solid #ccc;">${ticket.tipo}</td>
-                <td style="padding: 4px; border: 1px solid #ccc; background-color: ${fechaShow === "POR DEFINIR" ? '#fff' : '#d1e7dd'};">${fechaShow}</td>
-                <td style="padding: 4px; border: 1px solid #ccc; background-color: ${tecnicoShow === "POR ASIGNAR" ? '#fff' : '#d1e7dd'};">${tecnicoShow}</td>
-                <td style="padding: 4px; border: 1px solid #ccc;">${solucion}</td>
-            </tr>
-        `;
     });
+
+    if (ticketsCount === 0) {
+        showToast(`ℹ️ No hay actividades coordinadas para el próximo día hábil (${fechaVisual}).`);
+        container.classList.add('hidden');
+        return;
+    }
 
     const htmlReporte = `
         <div class="pjud-header-toggle" onclick="toggleSection('info-body', 'icon-info')">
-            <h3>Vista Previa: Informativo Técnico</h3>
+            <h3>Vista Previa: Informativo Técnico (${ticketsCount} registros para el ${fechaVisual})</h3>
             <i id="icon-info" class="fas fa-chevron-up rotate-icon"></i>
         </div>
         <div id="info-body" style="background: white; border: 1px solid #ddd; padding: 20px; border-radius: 0 0 5px 5px;">
@@ -742,9 +811,9 @@ function generarInformativoTecnico() {
             <div id="info-email-content" style="background: white; padding: 15px; border: 1px solid #eee; margin-bottom: 15px; font-family: Calibri, sans-serif; color: #000;">
                 <p style="margin-bottom: 10px;">Jorge<br>Buenas tardes</p><br>
                 <p style="margin-bottom: 10px;">
-                Junto con saludar, informo de las actividades que se realizarán el día de mañana por el área de SCO PJUD.
+                Junto con saludar, informo de las actividades que se realizarán el próximo día hábil por el área de SCO PJUD.
                 Se brinda información del técnico, la dependencia y la actividad a realizar. Favor revisar para poder apoyar a los técnicos que estarán en dichos procesos, de esta forma puedan contar con las herramientas, imágenes y procedimientos actualizados.
-                <br><br>Actividades coordinadas Para mañana:<br>
+                <br><br>Actividades coordinadas para el ${fechaVisual}:<br>
                 </p><br>
                 <table style="border-collapse: collapse; width: 100%; border: 1px solid #999; font-family: Arial, sans-serif;">
                     <thead>
@@ -781,6 +850,60 @@ function generarInformativoTecnico() {
     container.classList.remove('hidden');
 }
 
+// --- DESCARGA EXCEL INFORMATIVO (SÓLO SIGUIENTE DÍA HÁBIL) ---
+function exportarInformativoExcel() {
+    if (currentTicketsList.length === 0) {
+        showToast("⚠️ No hay datos para exportar.");
+        return;
+    }
+
+    const hoy = new Date();
+    const diaObjetivo = new Date(hoy);
+    if (hoy.getDay() === 5) diaObjetivo.setDate(diaObjetivo.getDate() + 3);
+    else if (hoy.getDay() === 6) diaObjetivo.setDate(diaObjetivo.getDate() + 2);
+    else diaObjetivo.setDate(diaObjetivo.getDate() + 1);
+
+    const yyyy = diaObjetivo.getFullYear();
+    const mm = String(diaObjetivo.getMonth() + 1).padStart(2, '0');
+    const dd = String(diaObjetivo.getDate()).padStart(2, '0');
+    const fechaObjetivoStr = `${yyyy}-${mm}-${dd}`; 
+
+    let csvContent = "TICKET;PROYECTO;MODELO EQUIPO;SERIE REPORTADA;DEPENDENCIA;TIPO;FECHA COORDINACIÓN;TECNICO COORDINADO;SOLUCION TERRENO\n";
+    let datosExportados = 0;
+
+    currentTicketsList.forEach(ticket => {
+        if (ticket.fechaCoord && ticket.fechaCoord === fechaObjetivoStr) {
+            datosExportados++;
+            const esCambio = (ticket.backup && ticket.backup.toUpperCase().trim() === "SI");
+            const solucion = esCambio ? "CAMBIO DE EQUIPO" : "EVALUACIÓN / CONFIGURACIÓN DE EQUIPO";
+            
+            const [y, m, d] = ticket.fechaCoord.split('-');
+            let fechaShow = `${d}/${m}/${y}`;
+            if (ticket.horaCoord) fechaShow += ` ${ticket.horaCoord}`;
+            
+            const tecnicoShow = ticket.tecnicoCoord || "POR ASIGNAR";
+
+            const row = [ticket.num, ticket.proyecto, ticket.modelo, ticket.serie, ticket.dependencia, ticket.tipo, fechaShow, tecnicoShow, solucion];
+            csvContent += row.join(";") + "\n";
+        }
+    });
+
+    if (datosExportados === 0) {
+        showToast("⚠️ No hay tickets coordinados para el próximo día hábil.");
+        return;
+    }
+
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Informativo_Tecnico_${fechaObjetivoStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast("✅ Archivo Excel descargado");
+}
+
 function exportarInformativoExcel() {
     if (currentTicketsList.length === 0) {
         showToast("⚠️ No hay datos para exportar.");
@@ -805,66 +928,129 @@ function exportarInformativoExcel() {
 }
 
 // --- REPORTE: EN BLANCO (AÑADIDO NUEVAMENTE) ---
+// 2. REPORTE EN BLANCO (Con Asignado A y botones de copiado individuales)
 function generarReporteEnBlanco() {
     const container = document.getElementById('blanco-result-container');
     const fInicio = document.getElementById('blanco-fecha-inicio').value;
     const fFin = document.getElementById('blanco-fecha-fin').value;
+    
+    const selectProyecto = document.getElementById('blanco-filtro-proyecto');
+    const filtroProyecto = selectProyecto ? selectProyecto.value : "TODOS";
 
-    if (allTicketsList.length === 0) {
-        showToast("⚠️ Carga datos en el módulo de Coordinación primero.");
-        return;
-    }
+    if (allTicketsList.length === 0) return showToast("⚠️ Carga datos primero.");
 
     let dDesde = fInicio ? new Date(fInicio + "T00:00:00") : null;
     let dHasta = fFin ? new Date(fFin + "T23:59:59") : null;
 
     const casosEnBlanco = allTicketsList.filter(t => {
-        const sinModelo = t.modelo === "Modelo N/A" || !t.modelo || t.modelo.trim() === "";
-        const sinTipo = t.tipo === "Equipo" || !t.tipo || t.tipo.trim() === "";
-        if (!(sinModelo || sinTipo)) return false;
+        if (!t.num || t.num.trim() === "") return false;
+
+        const estadoUpper = t.estado ? t.estado.toUpperCase() : "";
+        if (!estadoUpper.includes("FINALIZADO") && !estadoUpper.includes("CERRADO")) return false;
+
+        const proyUpper = t.proyecto ? t.proyecto.toUpperCase() : "";
+        if (filtroProyecto !== "TODOS" && !proyUpper.includes(filtroProyecto)) return false;
+
+        // --- DETECTOR DE BASURA Y FALSOS VACÍOS ---
+        const modUpper = t.modelo ? t.modelo.toUpperCase().trim() : "";
+        const sinModelo = modUpper === "" || modUpper === "MODELO N/A" || modUpper === "N/A" || modUpper === "-" || modUpper === "S/N" || modUpper === "." || modUpper === "0";
+
+        const tipoUpper = t.tipo ? t.tipo.toUpperCase().trim() : "";
+        const sinTipo = tipoUpper === "" || tipoUpper === "EQUIPO" || tipoUpper === "N/A" || tipoUpper === "-" || tipoUpper === "S/N";
+
+        const depUpper = t.dependencia ? t.dependencia.toUpperCase().trim() : "";
+        const sinDependencia = depUpper === "" || depUpper === "N/A" || depUpper === "-";
+
+        const jurUpper = t.jurisdiccion ? t.jurisdiccion.toUpperCase().trim() : "";
+        const sinJurisdiccion = jurUpper === "" || jurUpper === "N/A" || jurUpper === "-" || jurUpper === "GENERAL";
+        // ------------------------------------------
+
+        // Regla OR ampliada: Si falta cualquiera de las 4 cosas, lo atrapa
+        if (!(sinModelo || sinTipo || sinDependencia || sinJurisdiccion)) return false;
 
         if (dDesde && dHasta) {
+            if (!t.fechaFin) return false;
             const parts = t.fechaFin.split(' ')[0].split(/[-/]/);
             if(parts.length === 3) {
                  const fechaT = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T12:00:00`);
                  if (fechaT < dDesde || fechaT > dHasta) return false;
+            } else {
+                return false;
             }
         }
         return true;
     });
 
     if (casosEnBlanco.length === 0) {
-        container.innerHTML = `<div style="padding:15px; background:#d4edda; color:#155724; border-radius:5px;">✅ No se encontraron requerimientos en blanco en este periodo.</div>`;
+        container.innerHTML = `<div style="padding:15px; background:#d4edda; color:#155724; border-radius:5px;">✅ No se encontraron requerimientos incompletos para los filtros seleccionados.</div>`;
         container.classList.remove('hidden');
         return;
     }
 
     let tablaHTML = `
-        <div style="padding:15px; background:#fff3cd; color:#856404; border-radius:5px; margin-bottom:15px;">⚠️ Se encontraron <b>${casosEnBlanco.length}</b> requerimientos sin información técnica.</div>
+        <div style="padding:15px; background:#fff3cd; color:#856404; border-radius:5px; margin-bottom:15px;">⚠️ Se encontraron <b>${casosEnBlanco.length}</b> requerimientos sin información técnica completa.</div>
         <div style="overflow-x:auto;">
             <table id="tabla-en-blanco" style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; font-size: 11px;">
                 <thead style="background-color: #6c757d; color: white;">
                     <tr>
-                        <th style="padding:8px; border:1px solid #ddd;">Ticket</th>
-                        <th style="padding:8px; border:1px solid #ddd;">Grupo Resolutor</th>
-                        <th style="padding:8px; border:1px solid #ddd;">Fecha Finalizado</th>
-                        <th style="padding:8px; border:1px solid #ddd;">Modelo Detectado</th>
-                        <th style="padding:8px; border:1px solid #ddd;">Tipo Detectado</th>
-                        <th style="padding:8px; border:1px solid #ddd;">Dependencia</th>
+                        <th style="padding:8px; border:1px solid #ddd; text-align: left;">Proyecto</th>
+                        <th style="padding:8px; border:1px solid #ddd; text-align: left; white-space: nowrap;">
+                            Ticket 
+                            <button onclick="copiarColumnaTicketsBlanco()" title="Copiar solo Tickets" style="margin-left: 5px; padding: 2px 6px; font-size: 10px; background-color: #495057; color: white; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </th>
+                        <th style="padding:8px; border:1px solid #ddd; text-align: left;">Grupo Resolutor</th>
+                        
+                        <th style="padding:8px; border:1px solid #ddd; text-align: left; white-space: nowrap;">
+                            Asignado A
+                            <button onclick="copiarColumnaAsignadoBlanco()" title="Copiar solo Nombres" style="margin-left: 5px; padding: 2px 6px; font-size: 10px; background-color: #495057; color: white; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </th>
+                        
+                        <th style="padding:8px; border:1px solid #ddd; text-align: center;">Fecha Finalizado</th>
+                        <th style="padding:8px; border:1px solid #ddd; text-align: left;">Modelo Detectado</th>
+                        <th style="padding:8px; border:1px solid #ddd; text-align: left;">Tipo Detectado</th>
+                        <th style="padding:8px; border:1px solid #ddd; text-align: left;">Jurisdicción</th>
+                        <th style="padding:8px; border:1px solid #ddd; text-align: left;">Dependencia</th>
                     </tr>
                 </thead>
                 <tbody>
     `;
 
     casosEnBlanco.forEach(t => {
+        const modUpper = t.modelo ? t.modelo.toUpperCase().trim() : "";
+        const sinModelo = modUpper === "" || modUpper === "MODELO N/A" || modUpper === "N/A" || modUpper === "-" || modUpper === "S/N" || modUpper === "." || modUpper === "0";
+
+        const tipoUpper = t.tipo ? t.tipo.toUpperCase().trim() : "";
+        const sinTipo = tipoUpper === "" || tipoUpper === "EQUIPO" || tipoUpper === "N/A" || tipoUpper === "-" || tipoUpper === "S/N";
+
+        const depUpper = t.dependencia ? t.dependencia.toUpperCase().trim() : "";
+        const sinDependencia = depUpper === "" || depUpper === "N/A" || depUpper === "-";
+
+        const jurUpper = t.jurisdiccion ? t.jurisdiccion.toUpperCase().trim() : "";
+        const sinJurisdiccion = jurUpper === "" || jurUpper === "N/A" || jurUpper === "-" || jurUpper === "GENERAL";
+
+        const modeloShow = sinModelo ? `FALTA MODELO ${modUpper && modUpper !== "MODELO N/A" ? `("${t.modelo}")` : ''}` : t.modelo;
+        const tipoShow = sinTipo ? `FALTA TIPO ${tipoUpper && tipoUpper !== "EQUIPO" ? `("${t.tipo}")` : ''}` : t.tipo;
+        const jurShow = sinJurisdiccion ? `FALTA JURISDICCIÓN ${jurUpper === "GENERAL" ? '' : `("${t.jurisdiccion}")`}` : t.jurisdiccion;
+        const depShow = sinDependencia ? "FALTA DEPENDENCIA" : t.dependencia;
+
+        // Se agrega la celda de Asignado A (finalizadoPor)
+        const asignadoShow = t.finalizadoPor || "-";
+
         tablaHTML += `
             <tr style="border-bottom: 1px solid #eee;">
+                <td style="padding:8px; border:1px solid #ddd; color: #014f8b; font-weight: bold;">${t.proyecto || "N/A"}</td>
                 <td style="padding:8px; border:1px solid #ddd;"><b>${t.num}</b></td>
                 <td style="padding:8px; border:1px solid #ddd;">${t.grupo}</td>
-                <td style="padding:8px; border:1px solid #ddd;">${t.fechaFin}</td>
-                <td style="padding:8px; border:1px solid #ddd; color: ${t.modelo === 'Modelo N/A' ? '#dc3545' : 'inherit'}; font-weight: ${t.modelo === 'Modelo N/A' ? 'bold' : 'normal'};">${t.modelo}</td>
-                <td style="padding:8px; border:1px solid #ddd; color: ${t.tipo === 'Equipo' ? '#dc3545' : 'inherit'}; font-weight: ${t.tipo === 'Equipo' ? 'bold' : 'normal'};">${t.tipo}</td>
-                <td style="padding:8px; border:1px solid #ddd;">${t.dependencia}</td>
+                <td style="padding:8px; border:1px solid #ddd;">${asignadoShow}</td>
+                <td style="padding:8px; border:1px solid #ddd; text-align: center;">${t.fechaFin}</td>
+                <td style="padding:8px; border:1px solid #ddd; color: ${sinModelo ? '#dc3545' : '#333'}; font-weight: ${sinModelo ? 'bold' : 'normal'};">${modeloShow}</td>
+                <td style="padding:8px; border:1px solid #ddd; color: ${sinTipo ? '#dc3545' : '#333'}; font-weight: ${sinTipo ? 'bold' : 'normal'};">${tipoShow}</td>
+                <td style="padding:8px; border:1px solid #ddd; color: ${sinJurisdiccion ? '#dc3545' : '#333'}; font-weight: ${sinJurisdiccion ? 'bold' : 'normal'};">${jurShow}</td>
+                <td style="padding:8px; border:1px solid #ddd; color: ${sinDependencia ? '#dc3545' : '#333'}; font-weight: ${sinDependencia ? 'bold' : 'normal'};">${depShow}</td>
             </tr>
         `;
     });
@@ -872,6 +1058,85 @@ function generarReporteEnBlanco() {
     tablaHTML += `</tbody></table></div>`;
     container.innerHTML = tablaHTML;
     container.classList.remove('hidden');
+}
+
+// FUNCIONES DE COPIADO INDIVIDUALES
+function copiarColumnaTicketsBlanco() {
+    const tabla = document.getElementById('tabla-en-blanco');
+    if (!tabla) return showToast("⚠️ No hay tabla generada.");
+
+    let tickets = [];
+    const filas = tabla.querySelectorAll('tbody tr');
+    
+    filas.forEach(fila => {
+        const celdaTicket = fila.children[1]; // Índice 1 (Columna Ticket)
+        if (celdaTicket) tickets.push(celdaTicket.innerText.trim());
+    });
+
+    if (tickets.length === 0) return showToast("⚠️ No hay tickets para copiar.");
+    
+    const textoCopiar = tickets.join('\n');
+    copiarAlPortapapeles(textoCopiar, `✅ ${tickets.length} tickets copiados`);
+}
+
+function copiarColumnaAsignadoBlanco() {
+    const tabla = document.getElementById('tabla-en-blanco');
+    if (!tabla) return showToast("⚠️ No hay tabla generada.");
+
+    let asignados = [];
+    const filas = tabla.querySelectorAll('tbody tr');
+    
+    filas.forEach(fila => {
+        const celdaAsignado = fila.children[3]; // Índice 3 (Columna Asignado A)
+        if (celdaAsignado) asignados.push(celdaAsignado.innerText.trim());
+    });
+
+    if (asignados.length === 0) return showToast("⚠️ No hay datos para copiar.");
+    
+    const textoCopiar = asignados.join('\n');
+    copiarAlPortapapeles(textoCopiar, `✅ ${asignados.length} nombres copiados`);
+}
+
+// Función auxiliar para no repetir código de copiado
+function copiarAlPortapapeles(texto, mensajeExito) {
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(texto).then(() => {
+            showToast(mensajeExito);
+        }).catch(err => {
+            showToast("⚠️ Error al copiar");
+        });
+    } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = texto;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            showToast(mensajeExito);
+        } catch (err) {
+            showToast("⚠️ Error al copiar");
+        }
+        document.body.removeChild(textArea);
+    }
+}
+function exportarReporteBlancoExcel() {
+    const table = document.getElementById("tabla-en-blanco");
+    if (!table) return showToast("⚠️ Genera el reporte antes de exportar.");
+    let csv = [];
+    const rows = table.querySelectorAll("tr");
+    for (let i = 0; i < rows.length; i++) {
+        const row = [], cols = rows[i].querySelectorAll("td, th");
+        for (let j = 0; j < cols.length; j++) row.push(cols[j].innerText);
+        csv.push(row.join(";"));
+    }
+    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + csv.join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Reporte_En_Blanco_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
 
 function exportarReporteBlancoExcel() {
@@ -899,13 +1164,12 @@ function exportarReporteBlancoExcel() {
 
 
 // --- REPORTE: CONTROL DE CAMBIOS ---
+// --- REPORTE: CONTROL DE CAMBIOS ---
 async function generarReporteCambios() {
     const container = document.getElementById('cambios-result-container');
     const inputInicio = document.getElementById('filtro-fecha-inicio').value; 
     const inputFin = document.getElementById('filtro-fecha-fin').value;        
     const inputProyecto = document.getElementById('filtro-proyecto').value;
-
-    let catalogos = { skus: {}, ciudades: {} };
 
     function parseDateFromCSV(dateStr) {
         if (!dateStr) return null;
@@ -956,8 +1220,10 @@ async function generarReporteCambios() {
     ticketsFiltrados.forEach(t => {
         const dependenciaLimpia = t.dependencia ? t.dependencia.trim() : "";
         const modeloLimpio = t.modelo ? t.modelo.trim() : "";
-        const skuEncontrado = catalogos.skus[modeloLimpio] || "#N/A";
-        const ciudadEncontrada = catalogos.ciudades[dependenciaLimpia] || "#N/A";
+        
+        // AQUÍ USAMOS LAS VARIABLES GLOBALES DE catalogos.js
+        const skuEncontrado = CATALOGO_SKUS[modeloLimpio] || "#N/A";
+        const ciudadEncontrada = CATALOGO_CIUDADES[dependenciaLimpia] || "#N/A";
 
         filas += `
             <tr>
@@ -1095,14 +1361,13 @@ function enviarYCopiar(para, cc, asunto, idElemento) {
 }
 
 // --- REPORTE: ANTIVIRUS ---
+// 4. REPORTE ANTIVIRUS
+// 4. REPORTE ANTIVIRUS
 function generarReporteAntivirus() {
     const container = document.getElementById('antivirus-result-container');
     const inputFecha = document.getElementById('av-fecha-unica').value; 
 
-    if (!inputFecha) {
-        showToast("⚠️ Por favor selecciona una fecha.");
-        return;
-    }
+    if (!inputFecha) return showToast("⚠️ Por favor selecciona una fecha.");
 
     const para = "myabrudez_fcom@pjud.cl"; 
     const cc = "c.zapata@fcom.cl; s.guzman@fcom.cl; jmarrufo_hp@pjud.cl; roberto.miranda@fcom.cl; a.vacca@fcom.cl";
@@ -1122,15 +1387,22 @@ function generarReporteAntivirus() {
     const ticketsFiltrados = allTicketsList.filter(t => {
         const estadoUpper = t.estado ? t.estado.toUpperCase() : "";
         if (!estadoUpper.includes("FINALIZADO")) return false;
+        
         const grupoUpper = t.grupo ? t.grupo.toUpperCase() : "";
         if (!grupoUpper.includes("SCO") && !grupoUpper.includes("RESIDENTES")) return false;
+        
+        // --- NUEVA REGLA: Filtrar solo Computador o Notebook ---
+        const tipoUpper = t.tipo ? t.tipo.toUpperCase() : "";
+        if (!tipoUpper.includes("COMPUTADOR") && !tipoUpper.includes("NOTEBOOK")) return false;
+        // -------------------------------------------------------
+
         const fechaTicket = parseDateSimple(t.fechaFin);
         if (!fechaTicket) return false;
         return fechaTicket.getTime() === fechaSeleccionada.getTime();
     });
 
     if (ticketsFiltrados.length === 0) {
-        showToast(`⚠️ No hay tickets finalizados para el ${fechaFormat}.`);
+        showToast(`⚠️ No hay tickets de PC/Notebook finalizados para el ${fechaFormat}.`);
         container.innerHTML = "<p style='text-align:center; color:#666; padding: 20px;'>Sin resultados para la fecha seleccionada.</p>";
         container.classList.remove('hidden');
         return;
@@ -1139,10 +1411,12 @@ function generarReporteAntivirus() {
     let filasHTML = "";
     ticketsFiltrados.forEach(t => {
         let serieDespachada = "";
-        if (t.despachosRaw && t.despachosRaw.includes(":")) {
-            const parts = t.despachosRaw.split(":");
-            if(parts.length > 1) serieDespachada = parts[1].replace("|", "").trim();
+        const esCambio = (t.solucion === "CAMBIO EQUIPO" && t.backup === "SI");
+        if (esCambio) {
+            // Coloca directamente el contenido en bruto de la columna despachos
+            serieDespachada = t.despachosRaw ? t.despachosRaw.trim() : "Pendiente Validar";
         }
+
         filasHTML += `
             <tr style="border-bottom: 1px solid #ddd;">
                 <td style="padding: 5px; border: 1px solid #ccc;">${t.proyecto || ""}</td>
@@ -1209,7 +1483,7 @@ function generarReporteAntivirus() {
                 </div>
                 <div id="av-email-content" style="background: white; padding: 15px; border: 1px solid #ccc; font-family: Calibri, sans-serif; font-size: 11pt; color: #000;">
                     <p>Miguel<br>Buenos días</p><br>
-                    <p>Envío listado de los requerimientos gestionados el día de ayer, que involucraron Cambio o masterización de equipo.</p>
+                    <p>Envío listado de los requerimientos gestionados el día de ayer, que involucraron Cambio o masterización de equipo por las areas de SCO o residencias.</p>
                     <br><br>
                     <table style="border-collapse: collapse; width: 100%; border: 1px solid #999; font-family: Calibri, sans-serif; font-size: 10pt;">
                         <thead style="background-color: #e6e6e6;">
@@ -1242,6 +1516,30 @@ function generarReporteAntivirus() {
 
     container.innerHTML = tablaVisual + correoHTML;
     container.classList.remove('hidden');
+}
+
+function copiarTablaAntivirus() {
+    const tabla = document.getElementById('tabla-antivirus');
+    if (!tabla) return showToast("⚠️ Primero genera la tabla.");
+    const range = document.createRange();
+    range.selectNode(tabla);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+    document.execCommand("copy");
+    window.getSelection().removeAllRanges();
+    showToast("✅ Tabla copiada al portapapeles");
+}
+
+function copiarTablaAntivirus() {
+    const tabla = document.getElementById('tabla-antivirus');
+    if (!tabla) return showToast("⚠️ Primero genera la tabla.");
+    const range = document.createRange();
+    range.selectNode(tabla);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+    document.execCommand("copy");
+    window.getSelection().removeAllRanges();
+    showToast("✅ Tabla copiada al portapapeles");
 }
 
 function copiarTablaAntivirus() {
@@ -1500,6 +1798,55 @@ function switchSheetTab(tabId, btnElement) {
     document.getElementById(tabId).classList.remove('hidden-content');
     document.getElementById(tabId).classList.add('active-content');
     btnElement.classList.add('active');
+}
+
+// --- FUNCIÓN LIMPIAR ACTUALIZADA (CORRECCIÓN DE COLUMNAS) ---
+function clearTicketCoordination(ticketNum, btnElement) {
+    // 1. Borrar de la memoria local
+    try {
+        let savedCoords = JSON.parse(localStorage.getItem('sco_coordinations') || '{}');
+        if (savedCoords[ticketNum]) {
+            delete savedCoords[ticketNum];
+            localStorage.setItem('sco_coordinations', JSON.stringify(savedCoords));
+        }
+    } catch(e) {
+        console.warn("No se pudo acceder a localStorage", e);
+    }
+
+    // 2. Borrar de la memoria activa
+    const ticketInCurrent = currentTicketsList.find(t => t.num === ticketNum);
+    if (ticketInCurrent) {
+        ticketInCurrent.fechaCoord = "";
+        ticketInCurrent.horaCoord = "";
+        ticketInCurrent.tecnicoCoord = "";
+    }
+    
+    const ticketInAll = allTicketsList.find(t => t.num === ticketNum);
+    if (ticketInAll) {
+        ticketInAll.fechaCoord = "";
+        ticketInAll.horaCoord = "";
+        ticketInAll.tecnicoCoord = "";
+    }
+
+    // 3. Restaurar visualmente la fila en la tabla corrigiendo columnas
+    const fila = btnElement.closest('tr');
+    if (fila) {
+        // NOTA: Se actualizó a las columnas 6 (Fecha) y 7 (Técnico)
+        fila.children[6].innerHTML = "-";
+        fila.children[7].innerHTML = "-";
+        
+        fila.style.backgroundColor = "#f8d7da";
+        setTimeout(() => fila.style.backgroundColor = "", 800);
+    }
+
+    // 4. Limpiar panel inferior si está abierto
+    if (selectedTicketData && selectedTicketData.num === ticketNum) {
+        document.getElementById('coord-date').value = "";
+        document.getElementById('coord-time').value = "";
+        document.getElementById('tech-name').value = "";
+    }
+
+    showToast(`🧹 Coordinación eliminada para TK ${ticketNum}`);
 }
 
 // BOTÓN DESCARGAR PROMANAGER DESHABILITADO PARA MODO ESTÁTICO
