@@ -2,6 +2,45 @@ const VALID_PIN = "1234";
 let selectedTicketData = null; 
 let currentTicketsList = []; 
 let allTicketsList = []; 
+let DATOS_HISTORICOS_MESES = []; // Los meses que vienen de Sheets (Ene, Feb...)
+let DATOS_MANUAL_ACTUAL = null;  // Los datos que subes por CSV (Marzo...)
+let DATOS_NUEVO_MES_HISTORICO = null;
+
+// --- 0. LECTOR INTELIGENTE DE CSV (Faltaba esta función) ---
+function parseCSV(text, delimiter = ';') {
+    let rows = [];
+    let row = [];
+    let currentCell = '';
+    let insideQuotes = false;
+
+    for (let i = 0; i < text.length; i++) {
+        let char = text[i];
+        let nextChar = text[i + 1];
+
+        if (char === '"' && insideQuotes && nextChar === '"') {
+            currentCell += '"'; 
+            i++;
+        } else if (char === '"') {
+            insideQuotes = !insideQuotes; 
+        } else if (char === delimiter && !insideQuotes) {
+            row.push(currentCell);
+            currentCell = '';
+        } else if ((char === '\n' || char === '\r') && !insideQuotes) {
+            if (char === '\r' && nextChar === '\n') i++; 
+            row.push(currentCell);
+            rows.push(row);
+            row = [];
+            currentCell = '';
+        } else {
+            currentCell += char;
+        }
+    }
+    if (currentCell || row.length > 0) {
+        row.push(currentCell);
+        rows.push(row);
+    }
+    return rows;
+}
 
 // --- 1. CONFIGURACIÓN DE TÉCNICOS POR JURISDICCIÓN ---
 const TECNICOS_POR_JURISDICCION = {
@@ -75,7 +114,7 @@ function showModule(modName) {
 }
 
 
-// --- 4. PROCESAMIENTO DE DATOS ---
+// --- 4. PROCESAMIENTO DE DATOS PRINCIPAL ---
 function processData() {
     const fileInput = document.getElementById('csv-file');
     const filterElement = document.getElementById('group-filter');
@@ -89,7 +128,7 @@ function processData() {
     const file = fileInput.files[0];
     const reader = new FileReader();
 
-    reader.onload = function(e) {
+   reader.onload = function(e) {
         const rawData = e.target.result;
         const rows = rawData.split('\n'); 
         
@@ -98,7 +137,6 @@ function processData() {
         currentTicketsList = []; 
         allTicketsList = []; 
 
-        // Recuperar memoria local (Con bloque TRY para evitar que se rompa si está bloqueado)
         let savedCoords = {};
         try {
             savedCoords = JSON.parse(localStorage.getItem('sco_coordinations') || '{}');
@@ -111,6 +149,8 @@ function processData() {
             const cols = row.split(delimiter);
 
             if (cols.length < 5) return; 
+            
+            // ... (AQUÍ SIGUE EL RESTO DE TU CÓDIGO NORMAL: let rawSolucion = cols[23]...)
 
             let rawSolucion = cols[23] || "REVISIÓN"; 
             let solucionLimpia = rawSolucion;
@@ -157,10 +197,11 @@ function processData() {
                 backup: cleanCol(27) ? cleanCol(27).toUpperCase() : "NO",
                 guiaRetiro: cleanCol(28) ? cleanCol(28).toUpperCase() : "NO", 
                 solucion: solucionLimpia, 
-                despachosRaw: cleanCol(33) || cleanCol(27) 
+                despachosRaw: cleanCol(33) || cleanCol(27) ,
+                solucionMDARaw: cleanCol(22),
+                fechaCreacion: cleanCol(6)
             };
 
-            // Inyectar datos guardados si existen en memoria local
             if (savedCoords[ticketNum]) {
                 ticket.fechaCoord = savedCoords[ticketNum].fechaCoord;
                 ticket.horaCoord = savedCoords[ticketNum].horaCoord;
@@ -169,7 +210,6 @@ function processData() {
 
             allTicketsList.push(ticket);
 
-            // FILTRADO VISUAL
             const estadoUpper = ticket.estado.toUpperCase();
             const grupoUpper = ticket.grupo.toUpperCase();
             const isPending = !estadoUpper.includes("FINALIZADO") && !estadoUpper.includes("CERRADO");
@@ -263,8 +303,7 @@ function openCoordEditor(index) {
 }
 
 
-// --- 5. FUNCIÓN GUARDAR COMPLETAMENTE REESCRITA Y A PRUEBA DE FALLOS ---
-// --- FUNCIÓN GUARDAR ACTUALIZADA (CORRECCIÓN DE COLUMNAS) ---
+// --- 5. FUNCIÓN GUARDAR ACTUALIZADA ---
 function saveTicketCoordination() {
     if (!selectedTicketData) {
         showToast("⚠️ No hay ningún ticket seleccionado.");
@@ -280,12 +319,10 @@ function saveTicketCoordination() {
         return;
     }
 
-    // 1. Guardar en memoria RAM
     selectedTicketData.fechaCoord = fechaInput;
     selectedTicketData.horaCoord = horaInput;
     selectedTicketData.tecnicoCoord = techInput;
 
-    // 2. Guardar en memoria de Navegador (Con try-catch)
     try {
         let savedCoords = JSON.parse(localStorage.getItem('sco_coordinations') || '{}');
         savedCoords[selectedTicketData.num] = {
@@ -298,7 +335,6 @@ function saveTicketCoordination() {
         console.warn("Memoria caché bloqueada, guardado solo por sesión.", e);
     }
 
-    // 3. Pintar en la tabla corrigiendo el desfase de la nueva columna
     try {
         const tableBody = document.querySelector('#tickets-table tbody');
         const filas = tableBody.querySelectorAll('tr');
@@ -312,7 +348,6 @@ function saveTicketCoordination() {
                 const partes = fechaInput.split('-'); 
                 const fechaFormateada = partes.length === 3 ? `${partes[2]}-${partes[1]}-${partes[0]}` : fechaInput;
                 
-                // NOTA: Se actualizó a las columnas 6 (Fecha) y 7 (Técnico)
                 fila.children[6].innerHTML = `<span style="color:#007bff; font-weight:bold;">${fechaFormateada}</span><br><small>${horaInput}</small>`;
                 fila.children[7].innerHTML = `<span style="font-size:0.85em; font-weight:600;">${techInput}</span>`;
                 
@@ -333,8 +368,6 @@ function saveTicketCoordination() {
 
 
 // --- 6. GENERACIÓN DE MENSAJES (CORREO / WHATSAPP) ---
-// --- 5. GENERACIÓN DE MENSAJES (CORREO / WHATSAPP) ---
-// --- 5. GENERACIÓN DE MENSAJES (CORREO / WHATSAPP) ---
 function generateEmail() {
     if (!selectedTicketData) return;
 
@@ -362,19 +395,16 @@ function generateEmail() {
     const nombreCompleto = selectedTicketData.usuario || "Usuario";
     const primerNombre = nombreCompleto.trim().split(' ')[0];
 
-    // --- LÓGICA CORREGIDA PARA EXTRAER LA SERIE DESPACHADA ---
     let serieDespachada = "Pendiente / No registrada";
     const rawDespacho = selectedTicketData.despachosRaw || "";
     
-    // Verificamos si tiene el formato correcto con los dos puntos (:) Ej: Desktop:MXL9123N1H:SI|
     if (rawDespacho.includes(":")) {
         const parts = rawDespacho.split(":");
         if (parts.length >= 2) {
-            serieDespachada = parts[1].trim(); // Extrae lo que está en medio de los ':'
+            serieDespachada = parts[1].trim(); 
         }
     }
 
-    // --- TABLA ESTILIZADA MÁS PEQUEÑA Y COMPACTA ---
     const tablaEstilizada = `
     <table style="border-collapse: collapse; width: 100%; max-width: 350px; font-family: Segoe UI, Calibri, Arial, sans-serif; border: 1px solid #014f8b; font-size: 11px;">
         <thead><tr><th colspan="2" style="background-color: #014f8b; color: #ffffff !important; padding: 5px; text-align: center; font-size: 12px;">DETALLE DE COORDINACIÓN</th></tr></thead>
@@ -386,7 +416,6 @@ function generateEmail() {
             
             <tr style="background-color: #f2f2f2;"><td style="padding: 4px 6px; border: 1px solid #ddd; font-weight: bold;">TIPO EQUIPO</td><td style="padding: 4px 6px; border: 1px solid #ddd;">${selectedTicketData.tipo}</td></tr>
             <tr><td style="padding: 4px 6px; border: 1px solid #ddd; font-weight: bold;">SERIE REPORTADA</td><td style="padding: 4px 6px; border: 1px solid #ddd;">${selectedTicketData.serie}</td></tr>
-            
             
             <tr><td style="padding: 4px 6px; border: 1px solid #ddd; font-weight: bold;">FECHA</td><td style="padding: 4px 6px; border: 1px solid #ddd;">${date}</td></tr>
             <tr style="background-color: #f2f2f2;"><td style="padding: 4px 6px; border: 1px solid #ddd; font-weight: bold;">HORA</td><td style="padding: 4px 6px; border: 1px solid #ddd;">${time}</td></tr>
@@ -453,17 +482,14 @@ function generateWhatsApp() {
     const actividad = esCambio ? "CAMBIO DE EQUIPO" : "REVISIÓN / CONFIGURACION EQUIPO";
     const dir = selectedTicketData.direccion || "No especificada";
     
-    // Extraemos los datos de equipo y series
     const tipoEquipo = selectedTicketData.tipo || "No especificado";
     const serieReportada = selectedTicketData.serie || "No registrada";
     
-    // Extraemos la serie despachada (columna despachos)
     let serieDespachada = "Pendiente Validar";
     if (selectedTicketData.despachosRaw && selectedTicketData.despachosRaw.trim() !== "") {
         serieDespachada = selectedTicketData.despachosRaw.trim();
     }
 
-    // Agregamos las variables al mensaje con sus emojis
     const mensaje = `*TK:* ${selectedTicketData.num}\n🧰 *Tecnico:* ${tech}\n📀 *Proyecto:* ${selectedTicketData.proyecto}\n🏛️ *Tribunal:* ${selectedTicketData.dependencia}\n🏛️ *Direccion:* ${dir}\n🗓️ *Fecha Coordinada:* ${date}\n⏰ *Hora:* ${time}\n📝 *Actividad:* ${actividad}\n💻 *Tipo Equipo:* ${tipoEquipo}\n🏷️ *Serie Reportada:* ${serieReportada}\n📦 *Serie Despachada:* ${serieDespachada}\n🚨 *OBLIGATORIO:* COLOCAR LA IP EN TODAS LAS ATENCIONES\n\n⚠️ *Nota:* Revisar que la direccion sea la correcta. Descrita en la Mauweb`;
     
     const htmlWhatsApp = `
@@ -709,10 +735,17 @@ function switchReportTab(tabId, btnElement) {
     document.getElementById(tabId).classList.remove('hidden-content');
     document.getElementById(tabId).classList.add('active-content');
     btnElement.classList.add('active');
+
+    // ESTO ES LO QUE FALTA: Ejecutar la lógica de gráficos cuando entras a la pestaña
+   // Dentro de tu lógica de cambio de pestañas, busca el caso de 'tab-informe-mda'
+if (tabId === 'tab-informe-mda') {
+    setTimeout(() => { 
+        renderizarHistorico(); 
+        renderizarGraficoCanales(); // <-- ESTA ES LA QUE DIBUJA EL NUEVO GRÁFICO
+    }, 200); 
+}
 }
 
-// --- REPORTE: INFORMATIVO TÉCNICO ---
-// --- REPORTE: INFORMATIVO TÉCNICO ACTUALIZADO (SOLO DÍA SIGUIENTE) ---
 // --- REPORTE: INFORMATIVO TÉCNICO (SÓLO SIGUIENTE DÍA HÁBIL) ---
 function generarInformativoTecnico() {
     if (currentTicketsList.length === 0) {
@@ -725,34 +758,27 @@ function generarInformativoTecnico() {
     const para = "j.santos@fcom.cl";
     const cc = "c.zapata@fcom.cl; e.suarez@fcom.cl; e.socorro@fcom.cl; l.torres@fcom.cl; juan.diaz@fcom.cl; sandrade_fcom@pjud.cl; jchavez_hp@pjud.cl; s.guzman@fcom.cl; jmarrufo_hp@pjud.cl; f.solar@fcom.cl; svaldivieso_hp@pjud.cl; myabrudez_fcom@pjud.cl; j.riffo@fcom.cl; a.vacca@fcom.cl";
 
-    // --- LÓGICA INTELIGENTE DE "SIGUIENTE DÍA HÁBIL" ---
     const hoy = new Date();
     const diaObjetivo = new Date(hoy);
     
     if (hoy.getDay() === 5) { 
-        // Si hoy es Viernes (5), suma 3 días para llegar al Lunes
         diaObjetivo.setDate(diaObjetivo.getDate() + 3);
     } else if (hoy.getDay() === 6) { 
-        // Si hoy es Sábado (6), suma 2 días para llegar al Lunes
         diaObjetivo.setDate(diaObjetivo.getDate() + 2);
     } else {
-        // De Domingo a Jueves, suma solo 1 día
         diaObjetivo.setDate(diaObjetivo.getDate() + 1);
     }
     
-    // Formatear la fecha a YYYY-MM-DD para comparar con los datos guardados
     const yyyy = diaObjetivo.getFullYear();
     const mm = String(diaObjetivo.getMonth() + 1).padStart(2, '0');
     const dd = String(diaObjetivo.getDate()).padStart(2, '0');
     const fechaObjetivoStr = `${yyyy}-${mm}-${dd}`; 
-    const fechaVisual = `${dd}/${mm}/${yyyy}`; // Para mostrar en textos
-    // ----------------------------------------------------
+    const fechaVisual = `${dd}/${mm}/${yyyy}`; 
 
     let filasTabla = "";
     let ticketsCount = 0;
     
     currentTicketsList.forEach(ticket => {
-        // Solo agrega a la tabla si el ticket tiene la fecha del siguiente día hábil
         if (ticket.fechaCoord && ticket.fechaCoord === fechaObjetivoStr) {
             ticketsCount++;
             
@@ -850,7 +876,6 @@ function generarInformativoTecnico() {
     container.classList.remove('hidden');
 }
 
-// --- DESCARGA EXCEL INFORMATIVO (SÓLO SIGUIENTE DÍA HÁBIL) ---
 function exportarInformativoExcel() {
     if (currentTicketsList.length === 0) {
         showToast("⚠️ No hay datos para exportar.");
@@ -904,31 +929,7 @@ function exportarInformativoExcel() {
     showToast("✅ Archivo Excel descargado");
 }
 
-function exportarInformativoExcel() {
-    if (currentTicketsList.length === 0) {
-        showToast("⚠️ No hay datos para exportar.");
-        return;
-    }
-    let csvContent = "TICKET;PROYECTO;MODELO EQUIPO;SERIE REPORTADA;DEPENDENCIA;TIPO;FECHA COORDINACIÓN;TECNICO COORDINADO;SOLUCION TERRENO\n";
-    currentTicketsList.forEach(ticket => {
-        const esCambio = (ticket.backup && ticket.backup.toUpperCase().trim() === "SI");
-        const solucion = esCambio ? "CAMBIO DE EQUIPO" : "EVALUACIÓN / CONFIGURACIÓN DE EQUIPO";
-        const row = [ticket.num, ticket.proyecto, ticket.modelo, ticket.serie, ticket.dependencia, ticket.tipo, "POR DEFINIR", "POR ASIGNAR", solucion];
-        csvContent += row.join(";") + "\n";
-    });
-    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `Informativo_Tecnico_${new Date().toISOString().slice(0,10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showToast("✅ Archivo Excel descargado");
-}
-
-// --- REPORTE: EN BLANCO (AÑADIDO NUEVAMENTE) ---
-// 2. REPORTE EN BLANCO (Con Asignado A y botones de copiado individuales)
+// --- REPORTE: EN BLANCO ---
 function generarReporteEnBlanco() {
     const container = document.getElementById('blanco-result-container');
     const fInicio = document.getElementById('blanco-fecha-inicio').value;
@@ -951,7 +952,6 @@ function generarReporteEnBlanco() {
         const proyUpper = t.proyecto ? t.proyecto.toUpperCase() : "";
         if (filtroProyecto !== "TODOS" && !proyUpper.includes(filtroProyecto)) return false;
 
-        // --- DETECTOR DE BASURA Y FALSOS VACÍOS ---
         const modUpper = t.modelo ? t.modelo.toUpperCase().trim() : "";
         const sinModelo = modUpper === "" || modUpper === "MODELO N/A" || modUpper === "N/A" || modUpper === "-" || modUpper === "S/N" || modUpper === "." || modUpper === "0";
 
@@ -963,9 +963,7 @@ function generarReporteEnBlanco() {
 
         const jurUpper = t.jurisdiccion ? t.jurisdiccion.toUpperCase().trim() : "";
         const sinJurisdiccion = jurUpper === "" || jurUpper === "N/A" || jurUpper === "-" || jurUpper === "GENERAL";
-        // ------------------------------------------
 
-        // Regla OR ampliada: Si falta cualquiera de las 4 cosas, lo atrapa
         if (!(sinModelo || sinTipo || sinDependencia || sinJurisdiccion)) return false;
 
         if (dDesde && dHasta) {
@@ -1037,7 +1035,6 @@ function generarReporteEnBlanco() {
         const jurShow = sinJurisdiccion ? `FALTA JURISDICCIÓN ${jurUpper === "GENERAL" ? '' : `("${t.jurisdiccion}")`}` : t.jurisdiccion;
         const depShow = sinDependencia ? "FALTA DEPENDENCIA" : t.dependencia;
 
-        // Se agrega la celda de Asignado A (finalizadoPor)
         const asignadoShow = t.finalizadoPor || "-";
 
         tablaHTML += `
@@ -1060,7 +1057,6 @@ function generarReporteEnBlanco() {
     container.classList.remove('hidden');
 }
 
-// FUNCIONES DE COPIADO INDIVIDUALES
 function copiarColumnaTicketsBlanco() {
     const tabla = document.getElementById('tabla-en-blanco');
     if (!tabla) return showToast("⚠️ No hay tabla generada.");
@@ -1069,7 +1065,7 @@ function copiarColumnaTicketsBlanco() {
     const filas = tabla.querySelectorAll('tbody tr');
     
     filas.forEach(fila => {
-        const celdaTicket = fila.children[1]; // Índice 1 (Columna Ticket)
+        const celdaTicket = fila.children[1]; 
         if (celdaTicket) tickets.push(celdaTicket.innerText.trim());
     });
 
@@ -1087,7 +1083,7 @@ function copiarColumnaAsignadoBlanco() {
     const filas = tabla.querySelectorAll('tbody tr');
     
     filas.forEach(fila => {
-        const celdaAsignado = fila.children[3]; // Índice 3 (Columna Asignado A)
+        const celdaAsignado = fila.children[3]; 
         if (celdaAsignado) asignados.push(celdaAsignado.innerText.trim());
     });
 
@@ -1097,7 +1093,6 @@ function copiarColumnaAsignadoBlanco() {
     copiarAlPortapapeles(textoCopiar, `✅ ${asignados.length} nombres copiados`);
 }
 
-// Función auxiliar para no repetir código de copiado
 function copiarAlPortapapeles(texto, mensajeExito) {
     if (navigator.clipboard) {
         navigator.clipboard.writeText(texto).then(() => {
@@ -1118,25 +1113,6 @@ function copiarAlPortapapeles(texto, mensajeExito) {
         }
         document.body.removeChild(textArea);
     }
-}
-function exportarReporteBlancoExcel() {
-    const table = document.getElementById("tabla-en-blanco");
-    if (!table) return showToast("⚠️ Genera el reporte antes de exportar.");
-    let csv = [];
-    const rows = table.querySelectorAll("tr");
-    for (let i = 0; i < rows.length; i++) {
-        const row = [], cols = rows[i].querySelectorAll("td, th");
-        for (let j = 0; j < cols.length; j++) row.push(cols[j].innerText);
-        csv.push(row.join(";"));
-    }
-    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + csv.join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `Reporte_En_Blanco_${new Date().toISOString().slice(0,10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
 }
 
 function exportarReporteBlancoExcel() {
@@ -1163,7 +1139,6 @@ function exportarReporteBlancoExcel() {
 }
 
 
-// --- REPORTE: CONTROL DE CAMBIOS ---
 // --- REPORTE: CONTROL DE CAMBIOS ---
 async function generarReporteCambios() {
     const container = document.getElementById('cambios-result-container');
@@ -1221,9 +1196,8 @@ async function generarReporteCambios() {
         const dependenciaLimpia = t.dependencia ? t.dependencia.trim() : "";
         const modeloLimpio = t.modelo ? t.modelo.trim() : "";
         
-        // AQUÍ USAMOS LAS VARIABLES GLOBALES DE catalogos.js
-        const skuEncontrado = CATALOGO_SKUS[modeloLimpio] || "#N/A";
-        const ciudadEncontrada = CATALOGO_CIUDADES[dependenciaLimpia] || "#N/A";
+        const skuEncontrado = (typeof CATALOGO_SKUS !== 'undefined') ? (CATALOGO_SKUS[modeloLimpio] || "#N/A") : "#N/A";
+        const ciudadEncontrada = (typeof CATALOGO_CIUDADES !== 'undefined') ? (CATALOGO_CIUDADES[dependenciaLimpia] || "#N/A") : "#N/A";
 
         filas += `
             <tr>
@@ -1361,8 +1335,6 @@ function enviarYCopiar(para, cc, asunto, idElemento) {
 }
 
 // --- REPORTE: ANTIVIRUS ---
-// 4. REPORTE ANTIVIRUS
-// 4. REPORTE ANTIVIRUS
 function generarReporteAntivirus() {
     const container = document.getElementById('antivirus-result-container');
     const inputFecha = document.getElementById('av-fecha-unica').value; 
@@ -1391,10 +1363,8 @@ function generarReporteAntivirus() {
         const grupoUpper = t.grupo ? t.grupo.toUpperCase() : "";
         if (!grupoUpper.includes("SCO") && !grupoUpper.includes("RESIDENTES")) return false;
         
-        // --- NUEVA REGLA: Filtrar solo Computador o Notebook ---
         const tipoUpper = t.tipo ? t.tipo.toUpperCase() : "";
         if (!tipoUpper.includes("COMPUTADOR") && !tipoUpper.includes("NOTEBOOK")) return false;
-        // -------------------------------------------------------
 
         const fechaTicket = parseDateSimple(t.fechaFin);
         if (!fechaTicket) return false;
@@ -1413,7 +1383,6 @@ function generarReporteAntivirus() {
         let serieDespachada = "";
         const esCambio = (t.solucion === "CAMBIO EQUIPO" && t.backup === "SI");
         if (esCambio) {
-            // Coloca directamente el contenido en bruto de la columna despachos
             serieDespachada = t.despachosRaw ? t.despachosRaw.trim() : "Pendiente Validar";
         }
 
@@ -1516,30 +1485,6 @@ function generarReporteAntivirus() {
 
     container.innerHTML = tablaVisual + correoHTML;
     container.classList.remove('hidden');
-}
-
-function copiarTablaAntivirus() {
-    const tabla = document.getElementById('tabla-antivirus');
-    if (!tabla) return showToast("⚠️ Primero genera la tabla.");
-    const range = document.createRange();
-    range.selectNode(tabla);
-    window.getSelection().removeAllRanges();
-    window.getSelection().addRange(range);
-    document.execCommand("copy");
-    window.getSelection().removeAllRanges();
-    showToast("✅ Tabla copiada al portapapeles");
-}
-
-function copiarTablaAntivirus() {
-    const tabla = document.getElementById('tabla-antivirus');
-    if (!tabla) return showToast("⚠️ Primero genera la tabla.");
-    const range = document.createRange();
-    range.selectNode(tabla);
-    window.getSelection().removeAllRanges();
-    window.getSelection().addRange(range);
-    document.execCommand("copy");
-    window.getSelection().removeAllRanges();
-    showToast("✅ Tabla copiada al portapapeles");
 }
 
 function copiarTablaAntivirus() {
@@ -1800,9 +1745,7 @@ function switchSheetTab(tabId, btnElement) {
     btnElement.classList.add('active');
 }
 
-// --- FUNCIÓN LIMPIAR ACTUALIZADA (CORRECCIÓN DE COLUMNAS) ---
 function clearTicketCoordination(ticketNum, btnElement) {
-    // 1. Borrar de la memoria local
     try {
         let savedCoords = JSON.parse(localStorage.getItem('sco_coordinations') || '{}');
         if (savedCoords[ticketNum]) {
@@ -1813,7 +1756,6 @@ function clearTicketCoordination(ticketNum, btnElement) {
         console.warn("No se pudo acceder a localStorage", e);
     }
 
-    // 2. Borrar de la memoria activa
     const ticketInCurrent = currentTicketsList.find(t => t.num === ticketNum);
     if (ticketInCurrent) {
         ticketInCurrent.fechaCoord = "";
@@ -1828,10 +1770,8 @@ function clearTicketCoordination(ticketNum, btnElement) {
         ticketInAll.tecnicoCoord = "";
     }
 
-    // 3. Restaurar visualmente la fila en la tabla corrigiendo columnas
     const fila = btnElement.closest('tr');
     if (fila) {
-        // NOTA: Se actualizó a las columnas 6 (Fecha) y 7 (Técnico)
         fila.children[6].innerHTML = "-";
         fila.children[7].innerHTML = "-";
         
@@ -1839,7 +1779,6 @@ function clearTicketCoordination(ticketNum, btnElement) {
         setTimeout(() => fila.style.backgroundColor = "", 800);
     }
 
-    // 4. Limpiar panel inferior si está abierto
     if (selectedTicketData && selectedTicketData.num === ticketNum) {
         document.getElementById('coord-date').value = "";
         document.getElementById('coord-time').value = "";
@@ -1849,9 +1788,8 @@ function clearTicketCoordination(ticketNum, btnElement) {
     showToast(`🧹 Coordinación eliminada para TK ${ticketNum}`);
 }
 
-// BOTÓN DESCARGAR PROMANAGER DESHABILITADO PARA MODO ESTÁTICO
 function ejecutarScriptPython() {
-    alert("Esta función requiere un servidor backend (como el anterior en Render) y no está disponible en la versión estática de GitHub Pages. Por favor adjunta el archivo manualmente usando el botón 'Adjuntar Reporte'.");
+    alert("Esta función requiere un servidor backend y no está disponible en la versión estática de GitHub Pages. Por favor adjunta el archivo manualmente usando el botón 'Adjuntar Reporte'.");
 }
 
 function switchFormatTab(tabId, btnElement) {
@@ -1905,3 +1843,1409 @@ Adjuntar la boleta, y la OT (Orden de trabajo) de la actividad, esta OT es la qu
          document.body.removeChild(textArea);
     }
 }
+
+// =========================================================
+// === MÓDULO: INFORME MENSUAL MDA (CON AUDITORÍA QA Y DESGLOSE DE ANULADOS LADO A LADO) ===
+// =========================================================
+
+// --- 1. DICCIONARIO DE ESTADOS ---
+const MAPPING_SOLUCIONES_INFORME = {
+    'CONFIGURACIÓN': 'Solucionados en MDA',
+    'DERIVADO TERRENO': 'Derivado a Residencia',
+    'DERIVADO SCO': 'Derivado a SCO',
+    'DERIVADO OTRA AREA': 'Derivado a Otra Área',
+    'ANULADO NO CONTACTO': 'Anulado no Contacto',
+    'ANULADO USUARIO': 'Anulado Usuario',
+    'ANULADO': 'Anulado no Contacto', 
+    'HABILITACION SCO': 'Habilitacion x SCO'
+};
+
+// --- 2. CATÁLOGO DE RESIDENCIAS (Para Control de Calidad) ---
+const CATALOGO_RESIDENCIAS = [
+    // CAPJ
+    "CORPORACION ADMINISTRATIVA CENTRAL", "CORPORACION ADMINISTRATIVA CENTRAL - DEPARTAMENTO DE PLANIFICACION", "CORPORACION ADMINISTRATIVA CENTRAL - JUSTICIA MOVIL", "CORPORACION ADMINISTRATIVA CENTRAL - FINANZAS", "CORPORACION ADMINISTRATIVA CENTRAL - UNIDAD JURIDICA", "CORPORACION ADMINISTRATIVA CENTRAL - INFORMATICA", "CORPORACION ADMINISTRATIVA CENTRAL - ADQUISICIONES Y MANTENIMIENTO", "CORPORACION ADMINISTRATIVA CENTRAL - CENTRO DOCUMENTAL", "CORPORACION ADMINISTRATIVA CENTRAL - RECURSOS HUMANOS", "CORPORACION ADMINISTRATIVA CENTRAL - CENTRO DE NOTIFICACIONES", "CORPORACION ADMINISTRATIVA CENTRAL - BIENESTAR", "CORPORACION ADMINISTRATIVA DE SANTIAGO",
+    // CENTRO DE JUSTICIA
+    "2° TRIBUNAL DE JUICIO ORAL EN LO PENAL DE SANTIAGO", "10° JUZGADO DE GARANTIA DE SANTIAGO", "15° JUZGADO DE GARANTIA DE SANTIAGO", "11° JUZGADO DE GARANTIA DE SANTIAGO", "12° JUZGADO DE GARANTIA DE SANTIAGO", "7° TRIBUNAL DE JUICIO ORAL EN LO PENAL DE SANTIAGO", "8° JUZGADO DE GARANTIA DE SANTIAGO", "2° JUZGADO DE GARANTIA DE SANTIAGO", "6° JUZGADO DE GARANTIA DE SANTIAGO", "6° TRIBUNAL DE JUICIO ORAL EN LO PENAL DE SANTIAGO", "14°JUZGADO DE GARANTIA DE SANTIAGO", "1° JUZGADO DE GARANTIA DE SANTIAGO", "34° JUZGADO DEL CRIMEN DE SANTIAGO", "7° JUZGADO DE GARANTIA DE SANTIAGO", "14° JUZGADO DE GARANTIA DE SANTIAGO", "1° TRIBUNAL DE JUICIO ORAL EN LO PENAL DE SANTIAGO", "13° JUZGADO DE GARANTIA DE SANTIAGO", "3° TRIBUNAL DE JUICIO ORAL EN LO PENAL DE SANTIAGO", "4° TRIBUNAL DE JUICIO ORAL EN LO PENAL DE SANTIAGO", "5° TRIBUNAL DE JUICIO ORAL EN LO PENAL DE SANTIAGO", "9° JUZGADO DE GARANTIA DE SANTIAGO", "4° JUZGADO DE GARANTIA DE SANTIAGO", "3° JUZGADO DE GARANTIA DE SANTIAGO", "5° JUZGADO DE GARANTIA DE SANTIAGO", "CENTRO DE JUSTICIA DE SANTIAGO", "CENTRO DE JUSTICIA DE SANTIAGO - ADMINISTRACION CJS", "CENTRO DE NOTIFICACIONES JUDICIALES C.J. SANTIAGO", "ADMINISTRACION EXTERNA CENTRO DE JUSTICIA DE STGO.",
+    // CIVILES
+     "27º Juzgado Civil De Santiago","4º JUZGADO CIVIL DE SANTIAGO","4º JUZGADO CIVIL DE SANTIAGO","10° JUZGADO CIVIL DE SANTIAGO", "11° JUZGADO CIVIL DE SANTIAGO", "18° JUZGADO CIVIL DE SANTIAGO", "22° JUZGADO CIVIL DE SANTIAGO", "23° JUZGADO CIVIL DE SANTIAGO", "6° JUZGADO CIVIL DE SANTIAGO", "9° JUZGADO CIVIL DE SANTIAGO", "15° JUZGADO CIVIL DE SANTIAGO", "16° JUZGADO CIVIL DE SANTIAGO", "20° JUZGADO CIVIL DE SANTIAGO", "21° JUZGADO CIVIL DE SANTIAGO", "24° JUZGADO CIVIL DE SANTIAGO", "7° JUZGADO CIVIL DE SANTIAGO", "12° JUZGADO CIVIL DE SANTIAGO", "13° JUZGADO CIVIL DE SANTIAGO", "14° JUZGADO CIVIL DE SANTIAGO", "17° JUZGADO CIVIL DE SANTIAGO", "19° JUZGADO CIVIL DE SANTIAGO", "1° JUZGADO CIVIL DE SANTIAGO", "9°JUZGADO CIVIL DE SANTIAGO", "30° JUZGADO CIVIL DE SANTIAGO", "8° JUZGADO CIVIL DE SANTIAGO", "26° JUZGADO CIVIL DE SANTIAGO", "25° JUZGADO CIVIL DE SANTIAGO", "27° JUZGADO CIVIL DE SANTIAGO", "28° JUZGADO CIVIL DE SANTIAGO", "29° JUZGADO CIVIL DE SANTIAGO", "2° JUZGADO CIVIL DE SANTIAGO", "5° JUZGADO CIVIL DE SANTIAGO", "4° JUZGADO CIVIL DE SANTIAGO", "3° JUZGADO CIVIL DE SANTIAGO", "APOYO JUZGADOS CIVILES", "CENTRO APOYO JUZGADOS CIVILES Y LABORALES SANTIAGO",
+    // CONCEPCION
+    "1° JUZGADO CIVIL DE CONCEPCION", "2° JUZGADO CIVIL DE CONCEPCION", "JUZGADO DE FAMILIA DE CONCEPCION", "CENTRO DE NOTIFICACIONES DE CONCEPCION", "CORPORACION ADMINISTRATIVA DE CONCEPCION", "JUZGADO DE LETRAS DEL TRABAJO DE CONCEPCION", "CORTE DE APELACIONES DE CONCEPCION", "3° JUZGADO CIVIL DE CONCEPCION",
+    // CORTE SUPREMA
+    "CORTE SUPREMA DE JUSTICIA", "CORTE DE APELACIONES DE SANTIAGO", "CORTE SUPREMA DE JUSTICIA - BIBLIOTECA CS", "CORTE SUPREMA DE JUSTICIA - OFICINA DE EXTRADICION CS", "CORTE SUPREMA DE JUSTICIA - MINISTROS CS", "CORTE SUPREMA DE JUSTICIA - RELATORES CS", "CORTE SUPREMA DE JUSTICIA - FISCALIA CS", "UNIDAD DE PROTECCIONES I.C.A. DE SANTIAGO",
+    // FAMILIA
+    "JUZGADO DE COBRANZA LABORAL Y PREVISIONAL DE SANTI","2° JUZGADO DE FAMILIA DE SANTIAGO", "4° JUZGADO DE FAMILIA DE SANTIAGO", "3° JUZGADO DE FAMILIA DE SANTIAGO", "1° JUZGADO DE FAMILIA DE SANTIAGO", "1° JUZGADO DE LETRAS DEL TRABAJO DE SANTIAGO", "CENTRO ATENCION ASUNTOS DE FAMILIA DE SANTIAGO", "UNIDAD ADMTVA. TRAMIT. LAB. Y COBR. PREV. SANTIAGO", "JUZGADO DE COBRANZA LABORAL Y PREVISIONAL DE SANTIAGO", "CENTRO MEDIDAS CAUTELARES JDOS. FAMILIA SANTIAGO",
+    // SAN MIGUEL
+    "CORTE DE APELACIONES DE SAN MIGUEL", "JUZGADO DE LETRAS DEL TRABAJO DE SAN MIGUEL", "CORPORACION ADMINISTRATIVA DE SAN MIGUEL", "1° JUZGADO DE FAMILIA DE SAN MIGUEL", "2° JUZGADO DE FAMILIA DE SAN MIGUEL"
+];
+
+// Variables globales para copiar tickets
+window.ticketsOtrosMDA = [];
+window.ticketsQAErrores = [];
+
+// ==========================================
+// --- FUNCIONES DE COPIADO PARA FALLAS ---
+// ==========================================
+function copiarColumnaHardware() {
+    if (!window.ultimaDataFallas) return showToast("⚠️ No hay datos para copiar.");
+    const text = window.ultimaDataFallas.orden.map(j => window.ultimaDataFallas.datos[j].hardware).join('\n');
+    copiarTextoDirecto(text);
+}
+
+function copiarColumnaSoftware() {
+    if (!window.ultimaDataFallas) return showToast("⚠️ No hay datos para copiar.");
+    const text = window.ultimaDataFallas.orden.map(j => window.ultimaDataFallas.datos[j].software).join('\n');
+    copiarTextoDirecto(text);
+}
+
+function copiarColumnaTotalFallas() {
+    if (!window.ultimaDataFallas) return showToast("⚠️ No hay datos para copiar.");
+    const text = window.ultimaDataFallas.orden.map(j => window.ultimaDataFallas.datos[j].hardware + window.ultimaDataFallas.datos[j].software).join('\n');
+    copiarTextoDirecto(text);
+}
+// ==========================================
+
+function generarInformeMDA() {
+    const fileInput = document.getElementById('csv-informe-mda');
+    
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+        return showToast("⚠️ Por favor carga el archivo CSV limpio primero.");
+    }
+
+    const resultContainer = document.getElementById('mda-result-container');
+    resultContainer.classList.add('hidden'); 
+    resultContainer.innerHTML = '<p style="color:#666; padding: 15px;">Procesando datos y generando calendario completo...</p>'; 
+
+    const file = fileInput.files[0];
+    const reader = new FileReader();
+
+    reader.onload = function(e) {
+        const rawData = e.target.result;
+        const countComas = (rawData.match(/,/g) || []).length;
+        const countPuntoComas = (rawData.match(/;/g) || []).length;
+        const delimiter = countPuntoComas > countComas ? ';' : ',';
+        const rows = parseCSV(rawData, delimiter);
+
+        const contadoresFinales = {
+            'Anulado no Contacto': 0, 'Anulado Usuario': 0, 'Solucionados en MDA': 0,
+            'Derivado a Otra Área': 0, 'Derivado a SCO': 0, 'Derivado a Residencia': 0,
+            'Habilitacion x SCO': 0, 'No es Residencia': 0, 'Otros / Sin Clasificar': 0 
+        };
+
+        const contadoresResidencias = {
+            'CAPJ': 0, 'CENTRO DE JUSTICIA': 0, 'CIVILES': 0, 'CONCEPCION': 0, 'CORTE SUPREMA': 0, 'FAMILIA': 0, 'SAN MIGUEL': 0
+        };
+        let totalResidencias = 0;
+
+        const reporteFallas = {};
+
+        const catCAPJ = ["CORPORACION ADMINISTRATIVA CENTRAL", "CORPORACION ADMINISTRATIVA CENTRAL - DEPARTAMENTO DE PLANIFICACION", "CORPORACION ADMINISTRATIVA CENTRAL - JUSTICIA MOVIL", "CORPORACION ADMINISTRATIVA CENTRAL - FINANZAS", "CORPORACION ADMINISTRATIVA CENTRAL - UNIDAD JURIDICA", "CORPORACION ADMINISTRATIVA CENTRAL - INFORMATICA", "CORPORACION ADMINISTRATIVA CENTRAL - ADQUISICIONES Y MANTENIMIENTO", "CORPORACION ADMINISTRATIVA CENTRAL - CENTRO DOCUMENTAL", "CORPORACION ADMINISTRATIVA CENTRAL - RECURSOS HUMANOS", "CORPORACION ADMINISTRATIVA CENTRAL - CENTRO DE NOTIFICACIONES", "CORPORACION ADMINISTRATIVA CENTRAL - BIENESTAR", "CORPORACION ADMINISTRATIVA DE SANTIAGO"];
+        const catCJ = ["2° TRIBUNAL DE JUICIO ORAL EN LO PENAL DE SANTIAGO", "10° JUZGADO DE GARANTIA DE SANTIAGO", "15° JUZGADO DE GARANTIA DE SANTIAGO", "11° JUZGADO DE GARANTIA DE SANTIAGO", "12° JUZGADO DE GARANTIA DE SANTIAGO", "7° TRIBUNAL DE JUICIO ORAL EN LO PENAL DE SANTIAGO", "8° JUZGADO DE GARANTIA DE SANTIAGO", "2° JUZGADO DE GARANTIA DE SANTIAGO", "6° JUZGADO DE GARANTIA DE SANTIAGO", "6° TRIBUNAL DE JUICIO ORAL EN LO PENAL DE SANTIAGO", "14°JUZGADO DE GARANTIA DE SANTIAGO", "1° JUZGADO DE GARANTIA DE SANTIAGO", "34° JUZGADO DEL CRIMEN DE SANTIAGO", "7° JUZGADO DE GARANTIA DE SANTIAGO", "14° JUZGADO DE GARANTIA DE SANTIAGO", "1° TRIBUNAL DE JUICIO ORAL EN LO PENAL DE SANTIAGO", "13° JUZGADO DE GARANTIA DE SANTIAGO", "3° TRIBUNAL DE JUICIO ORAL EN LO PENAL DE SANTIAGO", "4° TRIBUNAL DE JUICIO ORAL EN LO PENAL DE SANTIAGO", "5° TRIBUNAL DE JUICIO ORAL EN LO PENAL DE SANTIAGO", "9° JUZGADO DE GARANTIA DE SANTIAGO", "4° JUZGADO DE GARANTIA DE SANTIAGO", "3° JUZGADO DE GARANTIA DE SANTIAGO", "5° JUZGADO DE GARANTIA DE SANTIAGO", "CENTRO DE JUSTICIA DE SANTIAGO", "CENTRO DE JUSTICIA DE SANTIAGO - ADMINISTRACION CJS", "CENTRO DE NOTIFICACIONES JUDICIALES C.J. SANTIAGO", "ADMINISTRACION EXTERNA CENTRO DE JUSTICIA DE STGO."];
+        const catCiviles = ["4º JUZGADO CIVIL DE SANTIAGO","10° JUZGADO CIVIL DE SANTIAGO", "11° JUZGADO CIVIL DE SANTIAGO", "18° JUZGADO CIVIL DE SANTIAGO", "22° JUZGADO CIVIL DE SANTIAGO", "23° JUZGADO CIVIL DE SANTIAGO", "6° JUZGADO CIVIL DE SANTIAGO", "9° JUZGADO CIVIL DE SANTIAGO", "15° JUZGADO CIVIL DE SANTIAGO", "16° JUZGADO CIVIL DE SANTIAGO", "20° JUZGADO CIVIL DE SANTIAGO", "21° JUZGADO CIVIL DE SANTIAGO", "24° JUZGADO CIVIL DE SANTIAGO", "7° JUZGADO CIVIL DE SANTIAGO", "12° JUZGADO CIVIL DE SANTIAGO", "13° JUZGADO CIVIL DE SANTIAGO", "14° JUZGADO CIVIL DE SANTIAGO", "17° JUZGADO CIVIL DE SANTIAGO", "19° JUZGADO CIVIL DE SANTIAGO", "1° JUZGADO CIVIL DE SANTIAGO", "9°JUZGADO CIVIL DE SANTIAGO", "30° JUZGADO CIVIL DE SANTIAGO", "8° JUZGADO CIVIL DE SANTIAGO", "26° JUZGADO CIVIL DE SANTIAGO", "25° JUZGADO CIVIL DE SANTIAGO", "27° JUZGADO CIVIL DE SANTIAGO", "28° JUZGADO CIVIL DE SANTIAGO", "29° JUZGADO CIVIL DE SANTIAGO", "2° JUZGADO CIVIL DE SANTIAGO", "5° JUZGADO CIVIL DE SANTIAGO", "4° JUZGADO CIVIL DE SANTIAGO", "3° JUZGADO CIVIL DE SANTIAGO", "APOYO JUZGADOS CIVILES", "CENTRO APOYO JUZGADOS CIVILES Y LABORALES SANTIAGO"];
+        const catConcepcion = ["1° JUZGADO CIVIL DE CONCEPCION", "2° JUZGADO CIVIL DE CONCEPCION", "JUZGADO DE FAMILIA DE CONCEPCION", "CENTRO DE NOTIFICACIONES DE CONCEPCION", "CORPORACION ADMINISTRATIVA DE CONCEPCION", "JUZGADO DE LETRAS DEL TRABAJO DE CONCEPCION", "CORTE DE APELACIONES DE CONCEPCION", "3° JUZGADO CIVIL DE CONCEPCION"];
+        const catSuprema = ["CORTE SUPREMA DE JUSTICIA", "CORTE DE APELACIONES DE SANTIAGO", "CORTE SUPREMA DE JUSTICIA - BIBLIOTECA CS", "CORTE SUPREMA DE JUSTICIA - OFICINA DE EXTRADICION CS", "CORTE SUPREMA DE JUSTICIA - MINISTROS CS", "CORTE SUPREMA DE JUSTICIA - RELATORES CS", "CORTE SUPREMA DE JUSTICIA - FISCALIA CS", "UNIDAD DE PROTECCIONES I.C.A. DE SANTIAGO"];
+        const catFamilia = ["JUZGADO DE COBRANZA LABORAL Y PREVISIONAL DE SANTI","2° JUZGADO DE FAMILIA DE SANTIAGO", "4° JUZGADO DE FAMILIA DE SANTIAGO", "3° JUZGADO DE FAMILIA DE SANTIAGO", "1° JUZGADO DE FAMILIA DE SANTIAGO", "1° JUZGADO DE LETRAS DEL TRABAJO DE SANTIAGO", "CENTRO ATENCION ASUNTOS DE FAMILIA DE SANTIAGO", "UNIDAD ADMTVA. TRAMIT. LAB. Y COBR. PREV. SANTIAGO", "JUZGADO DE COBRANZA LABORAL Y PREVISIONAL DE SANTIAGO", "CENTRO MEDIDAS CAUTELARES JDOS. FAMILIA SANTIAGO"];
+        const catSanMiguel = ["CORTE DE APELACIONES DE SAN MIGUEL", "JUZGADO DE LETRAS DEL TRABAJO DE SAN MIGUEL", "CORPORACION ADMINISTRATIVA DE SAN MIGUEL", "1° JUZGADO DE FAMILIA DE SAN MIGUEL", "2° JUZGADO DE FAMILIA DE SAN MIGUEL"];
+
+        const getCategoriaResidencia = (depClean) => {
+            if (catCAPJ.some(c => limpiarTexto(c) === depClean)) return 'CAPJ';
+            if (catCJ.some(c => limpiarTexto(c) === depClean)) return 'CENTRO DE JUSTICIA';
+            if (catCiviles.some(c => limpiarTexto(c) === depClean)) return 'CIVILES';
+            if (catConcepcion.some(c => limpiarTexto(c) === depClean)) return 'CONCEPCION';
+            if (catSuprema.some(c => limpiarTexto(c) === depClean)) return 'CORTE SUPREMA';
+            if (catFamilia.some(c => limpiarTexto(c) === depClean)) return 'FAMILIA';
+            if (catSanMiguel.some(c => limpiarTexto(c) === depClean)) return 'SAN MIGUEL';
+            return null;
+        };
+        
+        const ingresoDiario = {}; 
+        let totalTicketsMesFiltro = 0;
+        let mesDetectado = null;
+        let anioDetectado = null;
+
+        window.ticketsOtrosMDA = []; 
+        window.ticketsQAErrores = []; 
+        window.ticketsSinJurisdiccion = []; // NUEVO
+        window.ticketsSinFalla = []; // NUEVO
+
+        const limpiarTexto = (texto) => texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+
+
+        const conteoEquiposParaTabla = {};
+        rows.forEach((cols, index) => {
+            // Agrega esto al inicio del rows.forEach
+        const tipoEquipoCSV = cols[10] ? limpiarTexto(cols[10]) : "";
+        if (tipoEquipoCSV !== "") {
+            conteoEquiposParaTabla[tipoEquipoCSV] = (conteoEquiposParaTabla[tipoEquipoCSV] || 0) + 1;
+        }
+            if (index === 0 || cols.length < 5) return; 
+
+            const numTicket = cols[1] ? cols[1].trim() : "";
+            const fechaFull = cols[5] ? cols[5].split(' ')[0] : "Sin Fecha"; 
+            
+            // --- JURISDICCION Y FALLAS ---
+            let jurisdiccionRaw = cols[7] ? cols[7].replace(/"/g, "").trim() : "En blanco"; 
+            if (jurisdiccionRaw === "" || jurisdiccionRaw === "-" || jurisdiccionRaw.toUpperCase() === "N/A") {
+                jurisdiccionRaw = "En blanco";
+            }
+            
+            // NUEVO: Atrapa los tickets sin jurisdicción para auditar
+            if (jurisdiccionRaw === "En blanco" && numTicket !== "") {
+                window.ticketsSinJurisdiccion.push(numTicket);
+            }
+            
+            const tipoFallaRaw = cols[11] ? cols[11].replace(/"/g, "").trim().toUpperCase() : ""; 
+            
+            if (!reporteFallas[jurisdiccionRaw]) {
+                reporteFallas[jurisdiccionRaw] = { hardware: 0, software: 0, vacia: 0 };
+            }
+            
+            if (tipoFallaRaw.includes("HARDWARE")) {
+                reporteFallas[jurisdiccionRaw].hardware++;
+            } else if (tipoFallaRaw.includes("SOFTWARE")) {
+                reporteFallas[jurisdiccionRaw].software++;
+            } else {
+                reporteFallas[jurisdiccionRaw].vacia++;
+                // NUEVO: Atrapa los tickets sin tipo de falla para auditar
+                if (numTicket !== "") {
+                    window.ticketsSinFalla.push(numTicket);
+                }
+            }
+
+            if (fechaFull !== "Sin Fecha") {
+                // 1. Detectamos el separador que traiga el CSV (- o /)
+                const separadorOriginal = fechaFull.includes('/') ? '/' : '-';
+                const partesFecha = fechaFull.split(separadorOriginal);
+                
+                const d = partesFecha[0].padStart(2, '0');
+                const m = partesFecha[1].padStart(2, '0');
+                const y = partesFecha[2];
+
+                // 2. NORMALIZAMOS SIEMPRE A SLASH (/) 
+                // Esto es vital para que coincida con las llaves de la tabla diaria
+                const fechaNormalizada = `${d}/${m}/${y}`;
+
+                if (!mesDetectado) { 
+                    mesDetectado = parseInt(m); 
+                    anioDetectado = parseInt(y); 
+                }
+                
+                const dependencia = cols[6] ? limpiarTexto(cols[6]) : ""; 
+                const rawSolMDA = cols[14] ? cols[14].trim().toUpperCase() : ""; 
+                let estadoMapped = MAPPING_SOLUCIONES_INFORME[rawSolMDA] || 'Otros / Sin Clasificar';
+                const esResidencia = (rawSolMDA === "DERIVADO TERRENO");
+
+                if (estadoMapped === 'Derivado a Residencia') {
+                    if (!CATALOGO_RESIDENCIAS.includes(dependencia)) {
+                        estadoMapped = 'No es Residencia';
+                        if (numTicket !== "") window.ticketsQAErrores.push(numTicket);
+                    } else {
+                        const catResidencia = getCategoriaResidencia(dependencia);
+                        if (catResidencia) {
+                            contadoresResidencias[catResidencia]++;
+                            totalResidencias++;
+                        }
+                    }
+                }
+
+                if (estadoMapped === 'Otros / Sin Clasificar' && numTicket !== "") {
+                    window.ticketsOtrosMDA.push(numTicket);
+                }
+
+                contadoresFinales[estadoMapped]++;
+                totalTicketsMesFiltro++;
+
+                // 3. USAMOS LA FECHA NORMALIZADA CON SLASH
+                if (!ingresoDiario[fechaNormalizada]) ingresoDiario[fechaNormalizada] = { mda: 0, resi: 0 };
+                if (esResidencia) {
+                    ingresoDiario[fechaNormalizada].resi++;
+                } else {
+                    ingresoDiario[fechaNormalizada].mda++;
+                }
+            }
+        });
+
+        window.ultimoConteoResidencias = contadoresResidencias;
+        window.ultimoTotalResidencias = totalResidencias;
+
+        // --- LÓGICA DE CALENDARIO COMPLETO ---
+        let dailyRowsHTML = "";
+        const colFechas = [], colMDA = [], colResi = [], colTotal = [];
+        const mesesNombres = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+        const labelsGrafico = [];
+
+        if (mesDetectado && anioDetectado) {
+            const ultimoDia = new Date(anioDetectado, mesDetectado, 0).getDate();
+            for (let d = 1; d <= ultimoDia; d++) {
+                const diaStr = d.toString().padStart(2, '0');
+                const mesStr = mesDetectado.toString().padStart(2, '0');
+                const fechaClave = `${diaStr}/${mesStr}/${anioDetectado}`;
+                const datosDia = ingresoDiario[fechaClave] || { mda: 0, resi: 0 };
+                const sum = datosDia.mda + datosDia.resi;
+                const fechaObj = new Date(anioDetectado, mesDetectado - 1, d);
+                const numeroDiaSemana = fechaObj.getDay(); 
+
+                let colorFondo = "#ffffff"; 
+                if (numeroDiaSemana === 6) colorFondo = "#FFF9C4"; 
+                if (numeroDiaSemana === 0) colorFondo = "#FFEBEE"; 
+
+                colFechas.push(fechaClave);
+                colMDA.push(datosDia.mda);
+                colResi.push(datosDia.resi);
+                colTotal.push(sum);
+                labelsGrafico.push(`${diaStr}-${mesesNombres[mesDetectado-1]}`);
+
+                dailyRowsHTML += `<tr style="border-bottom: 1px solid #ddd; font-size: 13px;">
+                    <td style="padding: 2px 8px; background-color: ${colorFondo} !important;">${fechaClave}</td>
+                    <td style="padding: 2px 8px; text-align:center; color:#014f8b; background-color: ${colorFondo} !important;">${datosDia.mda}</td>
+                    <td style="padding: 2px 8px; text-align:center; color:#2e7d32; background-color: ${colorFondo} !important;">${datosDia.resi}</td>
+                    <td style="padding: 2px 8px; text-align:center; font-weight:bold; background-color: ${colorFondo} !important;">${sum}</td>
+                </tr>`;
+            }
+        }
+
+        // --- TABLA 1: ESTADOS ---
+        const ordenEstados = ['Anulado no Contacto', 'Anulado Usuario', 'Solucionados en MDA', 'Derivado a Otra Área', 'Derivado a SCO', 'Derivado a Residencia', 'Habilitacion x SCO', 'No es Residencia', 'Otros / Sin Clasificar'];
+        let rowsHTML = "";
+        ordenEstados.forEach(estado => {
+            const foliosCount = contadoresFinales[estado];
+            if (estado === 'No es Residencia' && foliosCount === 0) return;
+            const porcentaje = ((foliosCount / totalTicketsMesFiltro) * 100).toFixed(2); 
+            const colorTexto = (estado.includes('Residencia') && estado === 'No es Residencia' || estado.includes('Otros')) && foliosCount > 0 ? '#dc3545' : '#333';
+            const colorNegrita = (estado.includes('Residencia') && estado === 'No es Residencia' || estado.includes('Otros')) && foliosCount > 0 ? 'bold' : 'normal';
+
+            let botonCopiarInfo = "";
+            if (estado === 'Otros / Sin Clasificar' && foliosCount > 0) {
+                botonCopiarInfo = `<button onclick="copiarArray(window.ticketsOtrosMDA)" class="btn-copy-small" style="background-color: #dc3545; color: white; border:none; border-radius:3px; padding:2px 6px; font-size:10px; cursor:pointer;"><i class="fas fa-copy"></i> Copiar TK</button>`;
+            } else if (estado === 'No es Residencia' && foliosCount > 0) {
+                botonCopiarInfo = `<button onclick="copiarArray(window.ticketsQAErrores)" class="btn-copy-small" style="background-color: #ff8c00; color: white; border:none; border-radius:3px; padding:2px 6px; font-size:10px; cursor:pointer;"><i class="fas fa-search"></i> Auditar TK</button>`;
+            }
+            rowsHTML += `<tr style="border-bottom: 1px solid #ddd; font-size: 13px;">
+                <td style="padding: 3px 10px; color: ${colorTexto}; font-weight: ${colorNegrita};">${estado} ${botonCopiarInfo}</td>
+                <td style="padding: 3px 10px; text-align: center; color: #444; font-weight: bold;">${foliosCount}</td>
+                <td style="padding: 3px 10px; text-align: center; color: #666;">${porcentaje}%</td>
+            </tr>`;
+        });
+
+        // --- TABLA 2: ANULADOS ---
+        const totalAnulados = contadoresFinales['Anulado no Contacto'] + contadoresFinales['Anulado Usuario'];
+        const valoresTotalesAnulados = `${contadoresFinales['Anulado no Contacto']}\t${contadoresFinales['Anulado Usuario']}\t${totalAnulados}`;
+        const tablaAnuladosHTML = `
+            <div class="card-child" style="border: 1px solid #ddd; padding: 15px; background: #fff; border-radius: 4px; flex: 1; max-width: 480px;">
+                <h5 style="color: #014f8b; margin-top: 0; margin-bottom: 15px; font-family: Segoe UI, sans-serif; font-weight: bold;">Desglose de anulados por MDA:</h5>
+                <table style="width: 100%; border-collapse: collapse; font-family: Calibri, sans-serif; border: 1px solid #c0c0c0;">
+                    <thead><tr style="background-color: #315e9a; color: white; font-size: 13px; font-weight: bold;"><th style="padding: 5px 10px; text-align: left;">Estado</th><th style="padding: 5px 10px; text-align: center;">Sin contacto</th><th style="padding: 5px 10px; text-align: center;">Usuario</th><th style="padding: 5px 10px; text-align: center;">Total</th></tr></thead>
+                    <tbody><tr style="font-size: 13px;"><td style="padding: 3px 10px;">Anulados</td><td style="padding: 3px 10px; text-align:center;">${contadoresFinales['Anulado no Contacto']}</td><td style="padding: 3px 10px; text-align:center;">${contadoresFinales['Anulado Usuario']}</td><td style="padding: 3px 10px; text-align:center; font-weight:bold;">${totalAnulados}</td></tr></tbody>
+                    <tfoot><tr style="background-color: #315e9a; color: white; font-weight: bold; font-size: 13px;"><td style="padding: 5px 10px;">Total</td><td style="padding: 5px 10px; text-align:center;">${contadoresFinales['Anulado no Contacto']}</td><td style="padding: 5px 10px; text-align:center;">${contadoresFinales['Anulado Usuario']}</td><td style="padding: 5px 10px; text-align:center;">${totalAnulados} <button onclick="copiarTextoDirecto('${valoresTotalesAnulados}')" class="btn-copy-small" style="cursor:pointer;"><i class="fas fa-copy"></i></button></td></tr></tfoot>
+                </table>
+            </div>`;
+
+        // --- TABLA DE RESIDENCIAS ---
+        const ordenResidencias = ['CAPJ', 'CENTRO DE JUSTICIA', 'CIVILES', 'CONCEPCION', 'CORTE SUPREMA', 'FAMILIA', 'SAN MIGUEL'];
+        let rowsResidenciasHTML = "";
+        
+        ordenResidencias.forEach(res => {
+            const count = contadoresResidencias[res];
+            const porcentaje = totalResidencias > 0 ? ((count / totalResidencias) * 100).toFixed(2) : "0.00";
+            rowsResidenciasHTML += `
+                <tr style="border-bottom: 1px solid #ddd; font-size: 13px;">
+                    <td style="padding: 3px 10px;">${res}</td>
+                    <td style="padding: 3px 10px; text-align: center; font-weight: bold;">${count}</td>
+                    <td style="padding: 3px 10px; text-align: center;">${porcentaje}%</td>
+                </tr>`;
+        });
+
+        const tablaResidenciasHTML = `
+            <div class="card" style="border: 1px solid #ddd; padding: 0; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <div class="pjud-header-toggle" onclick="toggleSection('mda-residencias-body', 'icon-mda-residencias')" style="background: #f8f9fa; border-top: 4px solid #17a2b8; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                    <h4 style="color: #17a2b8; margin: 0; font-family: Segoe UI; font-weight: bold;"><i class="fas fa-building"></i> Atenciones de Residencias</h4>
+                    <i id="icon-mda-residencias" class="fas fa-chevron-up rotate-icon"></i>
+                </div>
+                <div id="mda-residencias-body">
+                    <div style="padding: 20px; background: #fff;">
+                        <p style="margin-top: 0; margin-bottom: 20px; color: #555; font-size: 14px;">La siguiente tabla, muestra el total de requerimientos creados en cada una de las residencias y su respectivo estado de solución, el cual es el actual a la fecha de presentación de este informe.</p>
+                        <div class="card-child" style="max-width: 400px; border: 1px solid #014f8b;">
+                            <table id="tabla-mda-residencias" style="width: 100%; border-collapse: collapse; font-family: Calibri, sans-serif;">
+                                <thead>
+                                    <tr style="background-color: #014f8b; color: white;">
+                                        <th style="padding: 5px 10px; border: 1px solid #014f8b; text-align: left;">ESTADOS</th>
+                                        <th style="padding: 5px 10px; border: 1px solid #014f8b; text-align: center;">FOLIOS <button onclick="copiarColumnaFoliosResidencias()" class="btn-copy-small" style="margin-left: 5px;"><i class="fas fa-copy"></i></button></th>
+                                        <th style="padding: 5px 10px; border: 1px solid #014f8b; text-align: center;">% <button onclick="copiarColumnaPorcentajeResidencias()" class="btn-copy-small" style="margin-left: 5px;"><i class="fas fa-copy"></i></button></th>
+                                    </tr>
+                                </thead>
+                                <tbody>${rowsResidenciasHTML}</tbody>
+                                <tfoot>
+                                    <tr style="background-color: #014f8b; color: white; font-weight: bold;">
+                                        <td style="padding: 5px 10px; border: 1px solid #014f8b; text-align: left;">Suma total</td>
+                                        <td style="padding: 5px 10px; border: 1px solid #014f8b; text-align: center;">${totalResidencias}</td>
+                                        <td style="padding: 5px 10px; border: 1px solid #014f8b; text-align: center;">100.00%</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // --- TABLA DE FALLAS ---
+        const ordenJurisdicciones = Object.keys(reporteFallas).sort();
+        window.ultimaDataFallas = { orden: ordenJurisdicciones, datos: reporteFallas };
+
+        let rowsFallasHTML = "";
+        let sumaTotalHard = 0, sumaTotalSoft = 0, sumaTotalVacia = 0;
+
+        ordenJurisdicciones.forEach(jur => {
+            const data = reporteFallas[jur];
+            const totalFila = data.hardware + data.software + data.vacia;
+            
+            // CREA EL BOTON SI ES "En blanco" Y TIENE TICKETS
+            let botonAuditarJur = "";
+            if (jur === "En blanco" && totalFila > 0) {
+                botonAuditarJur = ` <button onclick="copiarArray(window.ticketsSinJurisdiccion)" class="btn-copy-small" style="background-color: #ff8c00; color: white; border:none; border-radius:3px; padding:2px 6px; font-size:10px; cursor:pointer;" title="Auditar TKs sin jurisdicción"><i class="fas fa-search"></i> Auditar TK</button>`;
+            }
+            
+            const jurFormat = jur === "En blanco" ? "En blanco" + botonAuditarJur : jur.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+
+            rowsFallasHTML += `
+                <tr style="border-bottom: 1px solid #ddd; font-size: 13px; text-align: center;">
+                    <td style="padding: 3px 10px; text-align: left; font-weight: bold; white-space: nowrap;">${jurFormat}</td>
+                    <td style="padding: 3px 10px;">${data.hardware}</td>
+                    <td style="padding: 3px 10px;">${data.software}</td>
+                    <td style="padding: 3px 10px;">${data.vacia}</td>
+                    <td style="padding: 3px 10px; font-weight: bold;">${totalFila}</td>
+                </tr>`;
+                
+            sumaTotalHard += data.hardware;
+            sumaTotalSoft += data.software;
+            sumaTotalVacia += data.vacia;
+        });
+
+        const granTotalFallas = sumaTotalHard + sumaTotalSoft + sumaTotalVacia;
+
+        const tablaFallasHTML = `
+            <div class="card" style="border: 1px solid #ddd; padding: 0; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <div class="pjud-header-toggle" onclick="toggleSection('mda-fallas-body', 'icon-mda-fallas')" style="background: #f8f9fa; border-top: 4px solid #014f8b; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                    <h4 style="color: #014f8b; margin: 0; font-family: Segoe UI; font-weight: bold;"><i class="fas fa-tools"></i> Reporte de Fallas Divididas por Hardware y Software Según Jurisdicción</h4>
+                    <i id="icon-mda-fallas" class="fas fa-chevron-up rotate-icon"></i>
+                </div>
+                <div id="mda-fallas-body">
+                    <div style="padding: 20px; background: #fff;">
+                        <p style="margin-top: 0; margin-bottom: 20px; color: #555; font-size: 14px;">
+                            Este reporte ofrece un análisis comparativo de las fallas registradas en diferentes jurisdicciones, clasificadas en categorías: hardware, software y sin clasificar.
+                        </p>
+                        <div class="card-child" style="max-width: 850px; border: 1px solid #014f8b;">
+                            <table style="width: 100%; border-collapse: collapse; font-family: Calibri, sans-serif;">
+                                <thead>
+                                    <tr style="background-color: #315e9a; color: white;">
+                                        <th style="padding: 5px 10px; border: 1px solid #014f8b; text-align: left; white-space: nowrap;">JURISDICCION <button onclick="copiarTextoDirecto(window.ultimaDataFallas.orden.map(j => j === 'En blanco' ? 'En blanco' : j.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')).join('\\n'))" class="btn-copy-small" style="margin-left: 5px;"><i class="fas fa-copy"></i></button></th>
+                                        <th style="padding: 5px 10px; border: 1px solid #014f8b; text-align: center;">HARDWARE <button onclick="copiarTextoDirecto(window.ultimaDataFallas.orden.map(j => window.ultimaDataFallas.datos[j].hardware).join('\\n'))" class="btn-copy-small" style="margin-left: 5px;"><i class="fas fa-copy"></i></button></th>
+                                        <th style="padding: 5px 10px; border: 1px solid #014f8b; text-align: center;">SOFTWARE <button onclick="copiarTextoDirecto(window.ultimaDataFallas.orden.map(j => window.ultimaDataFallas.datos[j].software).join('\\n'))" class="btn-copy-small" style="margin-left: 5px;"><i class="fas fa-copy"></i></button></th>
+                                        <th style="padding: 5px 10px; border: 1px solid #014f8b; text-align: center;">SIN CLASIFICAR <button onclick="copiarTextoDirecto(window.ultimaDataFallas.orden.map(j => window.ultimaDataFallas.datos[j].vacia).join('\\n'))" class="btn-copy-small" style="margin-left: 5px;"><i class="fas fa-copy"></i></button></th>
+                                        <th style="padding: 5px 10px; border: 1px solid #014f8b; text-align: center;">SUMA TOTAL <button onclick="copiarTextoDirecto(window.ultimaDataFallas.orden.map(j => window.ultimaDataFallas.datos[j].hardware + window.ultimaDataFallas.datos[j].software + window.ultimaDataFallas.datos[j].vacia).join('\\n'))" class="btn-copy-small" style="margin-left: 5px;"><i class="fas fa-copy"></i></button></th>
+                                    </tr>
+                                </thead>
+                                <tbody>${rowsFallasHTML}</tbody>
+                                <tfoot>
+                                    <tr style="background-color: #315e9a; color: white; font-weight: bold; text-align: center;">
+                                        <td style="padding: 5px 10px; border: 1px solid #014f8b; text-align: left;">Suma total</td>
+                                        <td style="padding: 5px 10px; border: 1px solid #014f8b;">${sumaTotalHard}</td>
+                                        <td style="padding: 5px 10px; border: 1px solid #014f8b;">${sumaTotalSoft}</td>
+                                        <td style="padding: 5px 10px; border: 1px solid #014f8b;">
+                                            ${sumaTotalVacia}
+                                            ${sumaTotalVacia > 0 ? `<button onclick="copiarArray(window.ticketsSinFalla)" class="btn-copy-small" style="background-color: #ff8c00; color: white; border:none; border-radius:3px; padding:2px 6px; font-size:10px; cursor:pointer; margin-left: 5px;" title="Copiar TKs sin clasificar"><i class="fas fa-search"></i> TK</button>` : ''}
+                                        </td>
+                                        <td style="padding: 5px 10px; border: 1px solid #014f8b;">${granTotalFallas}</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // --- CONSTRUCCIÓN DEL HTML BASE FINAL ---
+        resultContainer.innerHTML = `
+            <div class="card" style="border: 1px solid #ddd; padding: 0; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <div class="pjud-header-toggle" onclick="toggleSection('mda-atencion-body', 'icon-mda-atencion')" style="background: #f8f9fa; border-top: 4px solid #014f8b; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                    <h4 style="color: #014f8b; margin: 0; font-family: Segoe UI; font-weight: bold;"><i class="fas fa-list-alt"></i> Atención MDA</h4>
+                    <i id="icon-mda-atencion" class="fas fa-chevron-up rotate-icon"></i>
+                </div>
+                <div id="mda-atencion-body">
+                    <div style="padding: 20px; background: #fff; display: flex; gap: 20px; flex-wrap: wrap;">
+                        <div class="card-child" style="flex: 1; max-width: 480px;">
+                            <table style="width: 100%; border-collapse: collapse; font-family: Calibri; border: 1px solid #c0c0c0;">
+                                <thead style="background:#315e9a; color:white;"><tr><th style="padding: 5px 10px; text-align: left;">ESTADOS</th><th style="padding: 5px 10px; text-align:center;">FOLIOS <button onclick="copiarColumnaFoliosMDA()" class="btn-copy-small">Copiar</button></th><th style="padding: 5px 10px; text-align:center;">%</th></tr></thead>
+                                <tbody>${rowsHTML}</tbody>
+                                <tfoot style="background:#315e9a; color:white; font-weight:bold;"><tr><td style="padding: 5px 10px;">Total general</td><td style="padding: 5px 10px; text-align:center;">${totalTicketsMesFiltro}</td><td style="padding: 5px 10px; text-align:center;">100.00%</td></tr></tfoot>
+                            </table>
+                        </div>
+                        ${tablaAnuladosHTML}
+                    </div>
+                </div>
+            </div>
+
+            ${tablaResidenciasHTML}
+            
+            ${tablaFallasHTML}
+
+            <div class="card" style="border: 1px solid #ddd; padding: 0; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <div class="pjud-header-toggle" onclick="toggleSection('mda-evolucion-body', 'icon-mda-evolucion')" style="background: #f8f9fa; border-top: 4px solid #28a745; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                    <h4 style="color: #2e7d32; margin: 0; font-family: Segoe UI; font-weight: bold;"><i class="fas fa-chart-line"></i> Evolución de Ingreso Diario</h4>
+                    <i id="icon-mda-evolucion" class="fas fa-chevron-up rotate-icon"></i>
+                </div>
+                <div id="mda-evolucion-body">
+                    <div style="padding: 20px; background: #fff;">
+                        <div style="width: 100%; height: 380px;">
+                            <canvas id="canvasGraficoEvolucion"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" style="border: 1px solid #ddd; padding: 0; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <div class="pjud-header-toggle" onclick="toggleSection('mda-diario-body', 'icon-mda-diario')" style="background: #f8f9fa; border-top: 4px solid #28a745; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                    <h4 style="color: #2e7d32; margin: 0; font-family: Segoe UI; font-weight: bold;"><i class="fas fa-calendar-alt"></i> Ingreso Diario Completo</h4>
+                    <i id="icon-mda-diario" class="fas fa-chevron-up rotate-icon"></i>
+                </div>
+                <div id="mda-diario-body">
+                    <div style="padding: 20px; background: #fff;">
+                        <table style="width: 100%; max-width: 650px; border-collapse: collapse; font-family: Calibri; border: 1px solid #c0c0c0;">
+                            <thead>
+                                <tr style="background-color: #2e7d32; color: white; font-size: 13px;">
+                                    <th style="padding: 4px 8px; text-align: left;">Fecha <button onclick="copiarTextoDirecto('${colFechas.join('\\n')}')" class="btn-copy-small"><i class="fas fa-copy"></i></button></th>
+                                    <th style="padding: 4px 8px; text-align:center;">Tickets MDA <button onclick="copiarTextoDirecto('${colMDA.join('\\n')}')" class="btn-copy-small"><i class="fas fa-copy"></i></button></th>
+                                    <th style="padding: 4px 8px; text-align:center;">Residencias <button onclick="copiarTextoDirecto('${colResi.join('\\n')}')" class="btn-copy-small"><i class="fas fa-copy"></i></button></th>
+                                    <th style="padding: 4px 8px; text-align:center;">Total Día <button onclick="copiarTextoDirecto('${colTotal.join('\\n')}')" class="btn-copy-small"><i class="fas fa-copy"></i></button></th>
+                                </tr>
+                            </thead>
+                            <tbody>${dailyRowsHTML}</tbody>
+                            <tfoot style="background-color: #e8f5e9; font-weight: bold; font-size: 13px; border-top: 2px solid #2e7d32;">
+                                <tr>
+                                    <td style="padding: 4px 8px;">TOTALES</td>
+                                    <td style="padding: 4px 8px; text-align:center; color:#014f8b;">${colMDA.reduce((a, b) => a + b, 0)}</td>
+                                    <td style="padding: 4px 8px; text-align:center; color:#2e7d32;">${colResi.reduce((a, b) => a + b, 0)}</td>
+                                    <td style="padding: 4px 8px; text-align:center;">${totalTicketsMesFiltro}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const drawNumbersPlugin = {
+            id: 'drawNumbers',
+            afterDatasetsDraw(chart) {
+                const { ctx, data } = chart;
+                ctx.save();
+                ctx.font = "bold 11px 'Segoe UI', Arial, sans-serif";
+                ctx.textAlign = 'center';
+                
+                const meta0 = chart.getDatasetMeta(0);
+                if (meta0 && !meta0.hidden) {
+                    meta0.data.forEach((point, index) => {
+                        const val = data.datasets[0].data[index];
+                        if (val > 0) {
+                            ctx.fillStyle = '#014f8b';
+                            ctx.textBaseline = 'bottom';
+                            ctx.fillText(val, point.x, point.y - 6);
+                        }
+                    });
+                }
+
+                const meta1 = chart.getDatasetMeta(1);
+                if (meta1 && !meta1.hidden) {
+                    meta1.data.forEach((point, index) => {
+                        const val = data.datasets[1].data[index];
+                        if (val > 0) {
+                            ctx.fillStyle = '#dc3545';
+                            ctx.textBaseline = 'top';
+                            ctx.fillText(val, point.x, point.y + 6);
+                        }
+                    });
+                }
+                ctx.restore();
+            }
+        };
+
+        try {
+            const ctxL = document.getElementById('canvasGraficoEvolucion').getContext('2d');
+            const modernFont = "'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif";
+            
+            new Chart(ctxL, {
+                type: 'line',
+                data: {
+                    labels: labelsGrafico,
+                    datasets: [
+                        { label: 'MDA', data: colMDA, borderColor: '#014f8b', backgroundColor: '#014f8b', borderWidth: 2, tension: 0.3, pointRadius: 4 },
+                        { label: 'Residencias', data: colResi, borderColor: '#dc3545', backgroundColor: '#dc3545', borderWidth: 2, tension: 0.3, pointRadius: 4 }
+                    ]
+                },
+                plugins: [drawNumbersPlugin], 
+                options: {
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        title: { display: true, text: 'Requerimientos creados en el Mes', font: { size: 16, family: modernFont, weight: 'normal' }, padding: 15 },
+                        legend: { position: 'bottom', labels: { font: { family: modernFont } } }
+                    },
+                    scales: { 
+                        x: { ticks: { font: { size: 12, family: modernFont }, maxRotation: 60, minRotation: 45 }, grid: { display: false } },
+                        y: { beginAtZero: true, grid: { color: '#f0f0f0' } }
+                    }
+                }
+            });
+
+        } catch (error) {
+            console.error("Error cargando el gráfico:", error);
+        }
+
+        resultContainer.classList.remove('hidden'); 
+        showToast(`✅ Informe generado con éxito.`);
+
+
+     // --- 1. PRIMERO DETECTAMOS EL NOMBRE DEL MES ---
+        let nombreMesDetectado = "MES NUEVO";
+        if (rows.length > 1 && rows[1][5]) {
+            nombreMesDetectado = extraerMesDeCSV(rows[1][5].split(' ')[0]);
+        }
+
+        // --- 2. PREPARAMOS LOS DATOS PARA LA CONCLUSIÓN ---
+        const infoResParaConclusion = {
+            total: totalResidencias,
+            capj: contadoresResidencias['CAPJ'] || 0,
+            cj: contadoresResidencias['CENTRO DE JUSTICIA'] || 0
+        };
+
+        const infoMDAParaConclusion = {
+            solucionados: contadoresFinales['Solucionados en MDA'] || 0,
+            mesaHP: (contadoresFinales['Solucionados en MDA'] || 0) + 
+                    (contadoresFinales['Derivado a Residencia'] || 0) + 
+                    (contadoresFinales['Derivado a SCO'] || 0)
+        };
+
+        // --- 3. LLAMADA QUE GENERA EL TEXTO DE CONCLUSIONES ---
+        generarConclusionesDinamicas(nombreMesDetectado, infoMDAParaConclusion, infoResParaConclusion, totalTicketsMesFiltro);
+
+        // --- 4. PROCESO DE INYECCIÓN DE DATOS DEL CSV A LA TABLA ---
+        try {
+            // Llenamos la variable global del histórico
+            window.DATOS_NUEVO_MES_HISTORICO = {
+                mes: nombreMesDetectado,
+                anulado: (contadoresFinales['Anulado no Contacto'] || 0) + (contadoresFinales['Anulado Usuario'] || 0),
+                derivadaOtraArea: contadoresFinales['Derivado a Otra Área'] || 0,
+                derivadaResidencia: contadoresFinales['Derivado a Residencia'] || 0,
+                derivadaSCO: contadoresFinales['Derivado a SCO'] || 0,
+                habilitacionSCO: contadoresFinales['Habilitacion x SCO'] || 0,
+                solucionadoMDA: contadoresFinales['Solucionados en MDA'] || 0,
+                dimensionado: 1300,
+                mesaHP: infoMDAParaConclusion.mesaHP
+            };
+
+            // Busca esta parte y déjala así:
+            DATOS_MANUAL_ACTUAL = { 
+                mes: nombreMesDetectado, 
+                equipos: conteoEquiposParaTabla // <--- Antes estaba como {}
+            };
+
+            console.log("✅ Datos e Informe generados para:", nombreMesDetectado);
+            
+            // Refrescamos visualmente todo
+            renderizarHistorico();
+            renderizarTablaTipos(DATOS_HISTORICOS_MESES);
+            renderizarGraficoCanales(); // <--- NUEVO: Esta línea actualiza el gráfico de líneas (MDA vs Residentes)
+
+        } catch (err) {
+            console.error("Error al actualizar la interfaz:", err);
+        }
+
+        resultContainer.classList.remove('hidden'); 
+        showToast(`✅ Informe y Conclusiones generados con éxito.`);
+
+    }; // Cierre del reader.onload
+    reader.readAsText(file, "ISO-8859-1"); 
+}
+// ... (Resto de funciones copiarArray, copiarColumnaFoliosMDA y renderizarHistorico se mantienen igual)
+
+// Función multiuso para copiar cualquier lista
+function copiarArray(arrayTickets) {
+    if (!arrayTickets || arrayTickets.length === 0) {
+        return showToast("⚠️ No hay tickets para copiar.");
+    }
+    const textoCopiar = arrayTickets.join('\n');
+    copiarAlPortapapeles(textoCopiar, `✅ ${arrayTickets.length} tickets copiados`);
+}
+
+// Función específica para copiar solo la columna de números (Folios) de la tabla principal
+function copiarColumnaFoliosMDA() {
+    const tabla = document.getElementById('tabla-mda-atencion');
+    if (!tabla) return showToast("⚠️ No hay tabla generada.");
+
+    let folios = [];
+    const filasBody = tabla.querySelectorAll('tbody tr');
+    const filaFoot = tabla.querySelector('tfoot tr');
+    
+    filasBody.forEach(fila => {
+        const celdaFolio = fila.children[1]; 
+        if (celdaFolio) folios.push(celdaFolio.innerText.trim());
+    });
+
+    if (filaFoot) {
+        const celdaTotal = filaFoot.children[1];
+        if (celdaTotal) folios.push(celdaTotal.innerText.trim());
+    }
+
+    if (folios.length === 0) return showToast("⚠️ No hay datos para copiar.");
+    
+    const textoCopiar = folios.join('\n');
+    copiarAlPortapapeles(textoCopiar, `✅ ${folios.length} valores copiados`);
+}
+
+// Función para copiar la columna de Folios de Residencias
+function copiarColumnaFoliosResidencias() {
+    const tabla = document.getElementById('tabla-mda-residencias');
+    if (!tabla) return showToast("⚠️ No hay tabla generada.");
+
+    let folios = [];
+    const filasBody = tabla.querySelectorAll('tbody tr');
+    const filaFoot = tabla.querySelector('tfoot tr');
+    
+    filasBody.forEach(fila => {
+        const celdaFolio = fila.children[1]; 
+        if (celdaFolio) folios.push(celdaFolio.innerText.trim());
+    });
+
+    if (filaFoot) {
+        const celdaTotal = filaFoot.children[1];
+        if (celdaTotal) folios.push(celdaTotal.innerText.trim());
+    }
+
+    if (folios.length === 0) return showToast("⚠️ No hay datos para copiar.");
+    
+    const textoCopiar = folios.join('\n');
+    copiarAlPortapapeles(textoCopiar, `✅ ${folios.length} valores copiados`);
+}
+
+// Función para copiar la columna de Porcentajes de Residencias
+function copiarColumnaPorcentajeResidencias() {
+    const tabla = document.getElementById('tabla-mda-residencias');
+    if (!tabla) return showToast("⚠️ No hay tabla generada.");
+
+    let porcentajes = [];
+    const filasBody = tabla.querySelectorAll('tbody tr');
+    const filaFoot = tabla.querySelector('tfoot tr');
+    
+    filasBody.forEach(fila => {
+        const celdaPorcentaje = fila.children[2]; 
+        if (celdaPorcentaje) porcentajes.push(celdaPorcentaje.innerText.trim());
+    });
+
+    if (filaFoot) {
+        const celdaTotal = filaFoot.children[2];
+        if (celdaTotal) porcentajes.push(celdaTotal.innerText.trim());
+    }
+
+    if (porcentajes.length === 0) return showToast("⚠️ No hay datos para copiar.");
+    
+    const textoCopiar = porcentajes.join('\n');
+    copiarAlPortapapeles(textoCopiar, `✅ ${porcentajes.length} valores copiados`);
+}
+
+// =========================================================
+// === MÓDULO: REGISTRO HISTÓRICO Y GRÁFICOS (PJUD 5) ===
+// =========================================================
+
+// 1. Variable global
+let HISTORICO_PJUD5 = []; 
+
+// 2. ENLACE DE TU GOOGLE SHEETS
+const URL_SHEETS_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRF7xX_Lf5Xjg6dYfV9y5e6arcmSP0VKmz6DGZAbQw8laxYRsC7V2FiifeorYpoiNd6S-h81aTvNwjq/pub?gid=2093520733&single=true&output=csv"; 
+let DATOS_TIPOS_EQUIPO = [];
+const URL_TIPOS_JSONP = "https://docs.google.com/spreadsheets/d/1kFRvMmyHom4APfhVqmdvHg_wSkKPH8Y0eJ5Z6HnVeq0/gviz/tq?tqx=responseHandler:manejarRespuestaTipos&gid=1959700363";
+
+// 3. FUNCIÓN MOTOR (CON PROXY PARA EVITAR ERROR CORS)
+function cargarDatosDesdeSheets() {
+    const docId = '1kFRvMmyHom4APfhVqmdvHg_wSkKPH8Y0eJ5Z6HnVeq0';
+    const gid = '2093520733';
+    // Esta URL usa un formato que el navegador no bloquea
+    const url = `https://docs.google.com/spreadsheets/d/${docId}/gviz/tq?tqx=responseHandler:manejarRespuestaSheets&gid=${gid}`;
+
+    console.log("Iniciando túnel de datos con Google Sheets...");
+    
+    const script = document.createElement('script');
+    script.src = url;
+    document.body.appendChild(script);
+}
+
+// Esta función recibe los datos mágicamente desde Google
+window.manejarRespuestaSheets = function(response) {
+    try {
+        const filas = response.table.rows;
+        
+        // --- NUEVA LÓGICA DE FORMATEO DE FECHAS ---
+        const mesesNombres = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sept", "oct", "nov", "dic"];
+        
+        const formatearFechaGoogle = (valorFecha) => {
+            if (!valorFecha || typeof valorFecha !== 'string') return "S/N";
+            
+            // Si viene como "Date(2026,0,25)"
+            if (valorFecha.includes("Date(")) {
+                const coincidencia = valorFecha.match(/\(([^)]+)\)/);
+                if (coincidencia) {
+                    const partes = coincidencia[1].split(',');
+                    const año = partes[0].trim().slice(-2); 
+                    const mesIdx = parseInt(partes[1].trim()); 
+                    
+                    return `${mesesNombres[mesIdx]} ${año}`;
+                }
+            }
+            return valorFecha.replace(/"/g, '').trim();
+        };
+
+        // --- MAPEO DE DATOS Y RECORTE A 12 MESES ---
+        HISTORICO_PJUD5 = filas.map(row => {
+            const c = row.c;
+            const getV = (idx) => (c[idx] && c[idx].v !== null) ? c[idx].v : 0;
+            const getF = (idx) => (c[idx] && c[idx].f !== null) ? c[idx].f : null;
+            
+            let fechaRaw = getF(0) || getV(0);
+            let fechaLimpia = formatearFechaGoogle(String(fechaRaw));
+
+            return {
+                mes: fechaLimpia,
+                anulado: parseInt(getV(1)) || 0,
+                derivadaOtraArea: parseInt(getV(2)) || 0,
+                derivadaResidencia: parseInt(getV(3)) || 0,
+                derivadaSCO: parseInt(getV(4)) || 0,
+                habilitacionSCO: parseInt(getV(5)) || 0,
+                solucionadoMDA: parseInt(getV(6)) || 0,
+                dimensionado: parseInt(getV(8)) || 0,
+                mesaHP: parseInt(getV(9)) || 0
+            };
+        }).slice(-12); // <--- ESTE ES EL CAMBIO: Mantiene solo los últimos 12 meses
+
+        console.log("✅ Datos procesados (limitados a últimos 12 meses):", HISTORICO_PJUD5);
+        
+        // --- DIBUJAMOS TODO ---
+        if (typeof renderizarHistorico === "function") renderizarHistorico();
+        if (typeof renderizarGraficoCanales === "function") renderizarGraficoCanales();
+        
+    } catch (error) {
+        console.error("❌ Error procesando la respuesta:", error);
+    }
+};
+// ... (Aquí termina tu función manejarRespuestaSheets)
+
+// --- ESTE ES EL DISPARADOR QUE DEBES AGREGAR AL FINAL ---
+document.addEventListener('DOMContentLoaded', () => {
+    cargarDatosDesdeSheets();
+    cargarDatosTipos();       // Carga Equipos (Tabla 2 - LA NUEVA)
+});
+
+// 4. Iniciar carga al cargar la web
+document.addEventListener('DOMContentLoaded', cargarDatosDesdeSheets);
+
+let chartAcumulado = null;
+let chartGestiones = null;
+
+// 5. Función de Tabla y Gráficos de Barras
+function renderizarHistorico() {
+    const tableContainer = document.getElementById('tabla-historica-mda');
+    if (!tableContainer || HISTORICO_PJUD5.length === 0) return;
+
+    // --- 1. UNIÓN DINÁMICA DE DATOS ---
+    let datosCompletos = JSON.parse(JSON.stringify(HISTORICO_PJUD5));
+    if (window.DATOS_NUEVO_MES_HISTORICO) {
+        const existeIdx = datosCompletos.findIndex(d => d.mes === window.DATOS_NUEVO_MES_HISTORICO.mes);
+        if (existeIdx !== -1) {
+            datosCompletos[existeIdx] = window.DATOS_NUEVO_MES_HISTORICO;
+        } else {
+            datosCompletos.push(window.DATOS_NUEVO_MES_HISTORICO);
+        }
+    }
+
+    let totAnulado = 0, totOtraArea = 0, totResidencia = 0, totSCO = 0, totHab = 0, totSol = 0, totMesaHP = 0, totGlobal = 0;
+
+    // --- 2. PLUGIN PARA TOTALES EN GRÁFICOS ---
+    const pluginTotalesBarras = {
+        id: 'pluginTotalesBarras',
+        afterDatasetsDraw(chart) {
+            const { ctx, data } = chart;
+            ctx.save();
+            ctx.font = "bold 11px Arial";
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#002b5c';
+            chart.data.datasets.forEach((dataset, i) => {
+                if (chart.getDatasetMeta(i).type === 'bar') {
+                    const meta = chart.getDatasetMeta(i);
+                    meta.data.forEach((bar, index) => {
+                        const val = dataset.data[index];
+                        if (val > 0) ctx.fillText(val.toLocaleString('es-CL'), bar.x, bar.y - 5);
+                    });
+                }
+            });
+            ctx.restore();
+        }
+    };
+
+    // --- 3. CONSTRUCCIÓN DE CABECERA UNIFICADA (AZUL) ---
+    const azulPJUD = "#2a579a";
+    let headHTML = `<tr style="background-color: ${azulPJUD};">`; 
+    
+    // Celda ESTADO
+    headHTML += `<th style="padding: 4px 8px; border: 1px solid #1a3b6c; text-align: center; background-color: ${azulPJUD}; color: white !important;">ESTADO</th>`;
+    
+    datosCompletos.forEach((d, i) => {
+        let botonCopiar = "";
+        if (i === datosCompletos.length - 1) {
+            const totalMes = d.anulado + d.derivadaOtraArea + d.derivadaResidencia + d.derivadaSCO + d.habilitacionSCO + d.solucionadoMDA;
+            const dataStr = [d.mes, d.anulado, d.derivadaOtraArea, d.derivadaResidencia, d.derivadaSCO, d.habilitacionSCO, d.solucionadoMDA, totalMes, d.dimensionado, d.mesaHP].join('\t');
+            botonCopiar = `<br><button onclick="copiarTextoDirecto('${dataStr}')" style="margin-top: 2px; cursor: pointer; color: ${azulPJUD}; background: #fff; border:none; border-radius:3px; padding: 1px 4px; font-size: 9px;"><i class="fas fa-copy"></i> Copiar</button>`;
+        }
+        
+        // Celdas de Meses
+        headHTML += `<th style="padding: 4px 8px; border: 1px solid #1a3b6c; text-align: center; vertical-align: middle; background-color: ${azulPJUD}; color: white !important;">${d.mes.toUpperCase()}${botonCopiar}</th>`;
+        
+        totAnulado += d.anulado; totOtraArea += d.derivadaOtraArea; totResidencia += d.derivadaResidencia;
+        totSCO += d.derivadaSCO; totHab += d.habilitacionSCO; totSol += d.solucionadoMDA; totMesaHP += d.mesaHP;
+    });
+
+    // Celda TOTAL ACUMULADO
+    headHTML += `<th style="padding: 4px 8px; border: 1px solid #1a3b6c; text-align: center; background-color: ${azulPJUD}; color: white !important;">TOTAL ACUM.</th></tr>`;
+
+    // --- 4. FILAS DE DATOS ---
+    const buildRow = (label, key, totalVal) => {
+        let rowHTML = `<tr><td style="padding: 3px 8px; border: 1px solid #ccc; text-align: left; font-weight: bold; background: #f8f9fa;">${label}</td>`;
+        datosCompletos.forEach(d => { rowHTML += `<td style="padding: 3px 8px; border: 1px solid #ccc; text-align: center;">${d[key].toLocaleString('es-CL')}</td>`; });
+        rowHTML += `<td style="padding: 3px 8px; border: 1px solid #ccc; font-weight: bold; text-align: center; background-color: #eee;">${totalVal.toLocaleString('es-CL')}</td></tr>`;
+        return rowHTML;
+    };
+
+    let bodyHTML = buildRow('Anulado', 'anulado', totAnulado) +
+                   buildRow('Derivado a Otra Área', 'derivadaOtraArea', totOtraArea) +
+                   buildRow('Derivado a Residencia', 'derivadaResidencia', totResidencia) +
+                   buildRow('Derivado a SCO', 'derivadaSCO', totSCO) +
+                   buildRow('Habilitación x SCO', 'habilitacionSCO', totHab) +
+                   buildRow('Solucionado en MDA', 'solucionadoMDA', totSol);
+
+    let rowTotales = `<tr style="background-color: #e2eaf4; font-weight: bold;"><td style="padding: 4px 8px; border: 1px solid #ccc;">Total Mensual</td>`;
+    datosCompletos.forEach(d => {
+        let mesT = d.anulado + d.derivadaOtraArea + d.derivadaResidencia + d.derivadaSCO + d.habilitacionSCO + d.solucionadoMDA;
+        totGlobal += mesT;
+        rowTotales += `<td style="padding: 4px 8px; border: 1px solid #ccc; text-align: center;">${mesT.toLocaleString('es-CL')}</td>`;
+    });
+    rowTotales += `<td style="padding: 4px 8px; border: 1px solid #ccc; text-align: center; background: ${azulPJUD}; color:white;">${totGlobal.toLocaleString('es-CL')}</td></tr>`;
+
+    // --- 5. FILAS DE GESTIÓN ---
+    let rowDim = `<tr><td style="padding: 3px 8px; border: 1px solid #ccc; text-align: left; font-weight: bold;">Dimensionado</td>`;
+    let rowMesa = `<tr><td style="padding: 3px 8px; border: 1px solid #ccc; text-align: left; font-weight: bold;">Mesa HP</td>`;
+    let rowRes = `<tr><td style="padding: 3px 8px; border: 1px solid #ccc; text-align: left; font-weight: bold;">% Resolución mesa HP</td>`;
+
+    datosCompletos.forEach(d => {
+        let mesT = d.anulado + d.derivadaOtraArea + d.derivadaResidencia + d.derivadaSCO + d.habilitacionSCO + d.solucionadoMDA;
+        let porcentaje = ((d.mesaHP / (mesT || 1)) * 100).toFixed(1).replace('.', ',');
+        rowDim += `<td style="padding: 3px 8px; border: 1px solid #ccc; text-align: center;">${d.dimensionado.toLocaleString('es-CL')}</td>`;
+        rowMesa += `<td style="padding: 3px 8px; border: 1px solid #ccc; text-align: center; font-weight: bold; color: #014f8b;">${d.mesaHP.toLocaleString('es-CL')}</td>`;
+        rowRes += `<td style="padding: 3px 8px; border: 1px solid #ccc; text-align: center; font-weight: bold; color: #166534;">${porcentaje}%</td>`;
+    });
+    rowDim += `<td style="padding: 3px 8px; border: 1px solid #ccc; background: #eee; text-align:center;">-</td></tr>`;
+    rowMesa += `<td style="padding: 3px 8px; border: 1px solid #ccc; font-weight: bold; text-align: center; background: #eee;">${totMesaHP.toLocaleString('es-CL')}</td></tr>`;
+    rowRes += `<td style="padding: 3px 8px; border: 1px solid #ccc; font-weight: bold; text-align: center; background: #eee;">${((totMesaHP / (totGlobal || 1)) * 100).toFixed(1).replace('.', ',')}%</td></tr>`;
+
+    tableContainer.innerHTML = `<thead>${headHTML}</thead><tbody>${bodyHTML}${rowTotales}${rowDim}${rowMesa}${rowRes}</tbody>`;
+
+    // --- 6. GRÁFICOS ---
+    const labelsGraficos = datosCompletos.map(d => d.mes);
+    if (window.chartAcumulado instanceof Chart) window.chartAcumulado.destroy();
+    const ctxA = document.getElementById('chartAcumulado');
+    if(ctxA) {
+        window.chartAcumulado = new Chart(ctxA, {
+            type: 'bar', data: { labels: labelsGraficos, datasets: [
+                { label: 'Mesa HP', data: datosCompletos.map(d => d.mesaHP), backgroundColor: '#8ea4d2' },
+                { label: 'Derivado a Otra Área', data: datosCompletos.map(d => d.derivadaOtraArea), backgroundColor: '#4b74b1' },
+                { label: 'Anulado', data: datosCompletos.map(d => d.anulado), backgroundColor: '#1f4287' },
+                { label: '% Resolución', data: datosCompletos.map(d => {
+                    let t = d.anulado + d.derivadaOtraArea + d.derivadaResidencia + d.derivadaSCO + d.habilitacionSCO + d.solucionadoMDA;
+                    return ((d.mesaHP / (t || 1)) * 100).toFixed(1);
+                }), type: 'line', borderColor: '#b0c4de', yAxisID: 'y1', pointRadius: 3, tension: 0.4 }
+            ]},
+            plugins: [pluginTotalesBarras],
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true }, y1: { type: 'linear', position: 'right', min: 0, max: 100 } } }
+        });
+    }
+
+    if (window.chartGestiones instanceof Chart) window.chartGestiones.destroy();
+    const ctxG = document.getElementById('chartGestiones');
+    if(ctxG) {
+        window.chartGestiones = new Chart(ctxG, {
+            type: 'bar', data: { labels: labelsGraficos, datasets: [
+                { label: 'Total General', data: datosCompletos.map(d => d.anulado + d.derivadaOtraArea + d.derivadaResidencia + d.derivadaSCO + d.habilitacionSCO + d.solucionadoMDA), backgroundColor: '#4b85c5' },
+                { label: 'Dimensionado', data: datosCompletos.map(d => d.dimensionado), type: 'line', borderColor: '#c00000', pointRadius: 0, fill: false }
+            ]},
+            plugins: [pluginTotalesBarras],
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+}
+// 6. Función Gráfico Comparativa Canales
+function renderizarGraficoCanales() {
+    const ctx = document.getElementById('chartCanalAtencion');
+    const tableDiv = document.getElementById('tabla-inferior-canales');
+    if (!ctx || !tableDiv || HISTORICO_PJUD5.length === 0) return;
+
+    if (window.miGraficoCanales) window.miGraficoCanales.destroy();
+
+    // --- 1. UNIÓN DE DATOS ---
+    let datosCompletos = JSON.parse(JSON.stringify(HISTORICO_PJUD5));
+    if (window.DATOS_NUEVO_MES_HISTORICO) {
+        const existeIdx = datosCompletos.findIndex(d => d.mes === window.DATOS_NUEVO_MES_HISTORICO.mes);
+        if (existeIdx !== -1) {
+            datosCompletos[existeIdx] = window.DATOS_NUEVO_MES_HISTORICO;
+        } else {
+            datosCompletos.push(window.DATOS_NUEVO_MES_HISTORICO);
+        }
+    }
+
+    // --- 2. PREPARACIÓN DE LABELS Y DATA ---
+    const labelsMeses = datosCompletos.map(d => d.mes);
+    
+    // MDA: Suma de categorías remotas
+    const dataMDA = datosCompletos.map(d => 
+        (d.anulado || 0) + (d.derivadaOtraArea || 0) + (d.derivadaSCO || 0) + (d.habilitacionSCO || 0) + (d.solucionadoMDA || 0)
+    );
+    
+    // Residentes: Valor directo
+    const dataResidentes = datosCompletos.map(d => d.derivadaResidencia || 0);
+
+    // --- 3. PLUGIN DE VALORES ---
+    const pluginValoresYPuntos = {
+        id: 'pluginValoresYPuntos',
+        afterDatasetsDraw(chart) {
+            const { ctx } = chart;
+            ctx.save();
+            ctx.font = "bold 12px 'Segoe UI', Arial, sans-serif";
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            const colorTextoGlobal = '#002b5c';
+
+            chart.data.datasets.forEach((dataset, i) => {
+                const meta = chart.getDatasetMeta(i);
+                const colorDeLaLinea = dataset.borderColor;
+                if (!meta.hidden) {
+                    meta.data.forEach((point, index) => {
+                        const val = dataset.data[index];
+                        if (val !== undefined) {
+                            ctx.fillStyle = colorTextoGlobal;
+                            ctx.fillText(val, point.x, point.y - 14);
+                            ctx.beginPath();
+                            ctx.arc(point.x, point.y, 4.5, 0, 2 * Math.PI); 
+                            ctx.fillStyle = colorDeLaLinea;
+                            ctx.fill();
+                            ctx.strokeStyle = 'white';
+                            ctx.lineWidth = 1;
+                            ctx.stroke();
+                            ctx.closePath();
+                        }
+                    });
+                }
+            });
+            ctx.restore();
+        }
+    };
+
+    // --- 4. CREACIÓN DEL CHART ---
+    window.miGraficoCanales = new Chart(ctx.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: labelsMeses,
+            datasets: [
+                {
+                    label: 'MDA',
+                    data: dataMDA,
+                    borderColor: '#4b74b1',
+                    tension: 0.35,
+                    fill: false,
+                    pointRadius: 0, 
+                    pointHitRadius: 10
+                },
+                {
+                    label: 'Residentes',
+                    data: dataResidentes,
+                    borderColor: '#b0c4de',
+                    tension: 0.35,
+                    fill: false,
+                    pointRadius: 0,
+                    pointHitRadius: 10
+                }
+            ]
+        },
+        plugins: [pluginValoresYPuntos],
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { 
+                legend: { display: false }, 
+                title: { display: true, text: 'Comparativa histórica por canal de atención', font: { size: 16, weight: 'bold' } } 
+            },
+            scales: { 
+                y: { beginAtZero: true, max: 1250 }, 
+                x: { ticks: { display: true } } // Aseguramos que se vean los nombres de los meses
+            }
+        }
+    });
+
+    // --- 5. ACTUALIZACIÓN DE LA TABLA INFERIOR DEL GRÁFICO ---
+    // --- ACTUALIZACIÓN DE LA TABLA INFERIOR (FILAS MÁS CHICAS) ---
+    let tablaHTML = `<table style="width: 100%; border-collapse: collapse; font-family: 'Segoe UI'; font-size: 11px; border: 1px solid #ccc; background: white;">
+        <thead>
+            <tr style="background: #f8f9fa;">
+                <th style="border: 1px solid #ccc; width: 120px; padding: 4px 8px;">CANAL</th>
+                ${labelsMeses.map(m => `<th style="border: 1px solid #ccc; text-align:center; padding: 4px 2px;">${m}</th>`).join('')}
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="border: 1px solid #ccc; padding: 4px 8px; color:#4b74b1; font-weight:bold;"><i class="fas fa-headset"></i> MDA</td>
+                ${dataMDA.map(v => `<td style="border: 1px solid #ccc; text-align:center; padding: 4px 2px;">${v}</td>`).join('')}
+            </tr>
+            <tr>
+                <td style="border: 1px solid #ccc; padding: 4px 8px; color:#8ba0ba; font-weight:bold;"><i class="fas fa-user-tie"></i> Residentes</td>
+                ${dataResidentes.map(v => `<td style="border: 1px solid #ccc; text-align:center; padding: 4px 2px;">${v}</td>`).join('')}
+            </tr>
+        </tbody>
+    </table>`;
+    
+    tableDiv.innerHTML = tablaHTML;
+}
+
+function cargarDatosTipos() {
+    console.log("Iniciando carga de reporte por equipos...");
+    const script = document.createElement('script');
+    script.src = URL_TIPOS_JSONP;
+    document.body.appendChild(script);
+}
+
+window.manejarRespuestaTipos = function(response) {
+    try {
+        const rows = response.table.rows;
+        const cols = response.table.cols;
+        const mesesNombres = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sept", "oct", "nov", "dic"];
+        
+        const formatearFechaSimple = (valor) => {
+            if (!valor || typeof valor !== 'string') return "S/N";
+            if (valor.includes("Date(")) {
+                const coincidencia = valor.match(/\(([^)]+)\)/);
+                if (coincidencia) {
+                    const partes = coincidencia[1].split(',');
+                    const año = partes[0].trim().slice(-2); 
+                    const mesIdx = parseInt(partes[1].trim()); 
+                    return `${mesesNombres[mesIdx]} ${año}`;
+                }
+            }
+            return valor;
+        };
+
+// Usamos slice(1) para que tome DESDE la segunda columna hasta el final (incluyendo COMPUTADOR)
+const nombresEquipos = cols.slice(1).filter(c => c.label && c.label !== "TOTAL" && c.label !== "Suma total").map(c => c.label);        
+        // --- CORRECCIÓN DE FILAS: Filtramos para ignorar filas que digan "Suma total" o estén vacías al final ---
+        const filasValidas = rows.filter(row => {
+            const primerCelda = row.c[0] ? String(row.c[0].v || row.c[0].f) : "";
+            return primerCelda !== "" && !primerCelda.toLowerCase().includes("suma");
+        });
+
+        // Tomamos los últimos 12 meses reales
+        const ultimasFilas = filasValidas.slice(-12);
+        
+        const mesesCabecera = ultimasFilas.map(row => {
+            const val = row.c[0] ? (row.c[0].f || row.c[0].v) : "S/N";
+            return formatearFechaSimple(String(val));
+        });
+
+      DATOS_TIPOS_EQUIPO = nombresEquipos.map((nombre, equipoIdx) => {
+    const idxReal = equipoIdx + 1; // La columna 0 es la fecha, la 1 es el primer equipo...
+    const valoresPorMes = ultimasFilas.map(row => {
+        return (row.c[idxReal] && row.c[idxReal].v !== null) ? row.c[idxReal].v : 0;
+    });
+    const totalEquipo = valoresPorMes.reduce((a, b) => a + b, 0);
+    return { tipo: nombre.toUpperCase(), valores: valoresPorMes, total: totalEquipo };
+});
+
+        // Fila de TOTAL (Suma vertical de la tabla)
+        const sumaTotalesMensuales = mesesCabecera.map((_, mesIdx) => {
+            let sumaMes = 0;
+            DATOS_TIPOS_EQUIPO.forEach(equipo => {
+                sumaMes += equipo.valores[mesIdx];
+            });
+            return sumaMes;
+        });
+
+        const granTotalGlobal = sumaTotalesMensuales.reduce((a, b) => a + b, 0);
+
+        DATOS_TIPOS_EQUIPO.push({
+            tipo: "TOTAL",
+            valores: sumaTotalesMensuales,
+            total: granTotalGlobal,
+            esFilaTotal: true
+        });
+
+        renderizarTablaTipos(mesesCabecera);
+    } catch (e) {
+        console.error("Error en tipos:", e);
+    }
+};
+
+
+
+function renderizarTablaTipos(meses) {
+    const contenedor = document.getElementById('tabla-fallas-equipos');
+    if (!contenedor) return;
+    DATOS_HISTORICOS_MESES = meses;
+
+    let columnasAMostrar = [...meses];
+    if (DATOS_MANUAL_ACTUAL) {
+        columnasAMostrar.push(DATOS_MANUAL_ACTUAL.mes);
+    }
+
+    const normalizarKey = (t) => t.trim().toUpperCase();
+    const azulPJUD = "#2a579a"; // Color azul estándar
+
+    let html = `<table id="tabla-equipos-datos" style="width:100%; border-collapse: collapse; font-family: 'Segoe UI', sans-serif; font-size: 11px; border: 1px solid #ccc;">
+        <thead>
+            <tr style="background: ${azulPJUD}; color: white; font-weight: bold;">
+                <th style="padding: 4px 8px; border: 1px solid #1a3b6c; text-align: left; color: white; background-color: ${azulPJUD};">TIPO</th>
+                ${columnasAMostrar.map((m, i) => {
+                    // Quitamos el color verde, ahora siempre es azul
+                    let boton = (i === columnasAMostrar.length - 1) ? `<br><button onclick="copiarColumnaVertical(${i + 1})" style="margin-top: 2px; cursor: pointer; color: ${azulPJUD}; background: #fff; border:none; border-radius:3px; padding: 0px 4px; font-size: 9px;"><i class="fas fa-copy"></i> Copiar</button>` : "";
+                    return `<th style="padding: 4px 8px; border: 1px solid #1a3b6c; text-align:center; background: ${azulPJUD}; color: white;">${m.toUpperCase()}${boton}</th>`;
+                }).join('')}
+                <th style="padding: 4px 8px; border: 1px solid #1a3b6c; text-align:center; background: #1a3b6c; color: white;">SUMA TOTAL</th>
+            </tr>
+        </thead>
+        <tbody>`;
+
+    DATOS_TIPOS_EQUIPO.forEach(item => {
+        const esFilaTotal = item.esFilaTotal || item.tipo === "TOTAL";
+        let valoresFila = [...item.valores];
+        let totalFila = item.total; 
+
+        if (DATOS_MANUAL_ACTUAL) {
+            let valorExtra = 0;
+            if (esFilaTotal) {
+                valorExtra = Object.values(DATOS_MANUAL_ACTUAL.equipos).reduce((a, b) => a + b, 0);
+            } else {
+                const searchKey = normalizarKey(item.tipo);
+                const matchKey = Object.keys(DATOS_MANUAL_ACTUAL.equipos).find(k => normalizarKey(k) === searchKey);
+                valorExtra = matchKey ? DATOS_MANUAL_ACTUAL.equipos[matchKey] : 0;
+            }
+            valoresFila.push(valorExtra);
+            totalFila += valorExtra; 
+        }
+
+        html += `<tr style="${esFilaTotal ? 'background: #f2f2f2; font-weight: bold;' : ''}">
+            <td style="padding: 3px 8px; border: 1px solid #ccc; font-weight: bold; background: ${esFilaTotal ? '#f2f2f2' : '#f8f9fa'};">${item.tipo}</td>
+            ${valoresFila.map((v, idx) => {
+                // Quitamos el fondo verde de la celda de datos
+                return `<td style="padding: 3px 8px; border: 1px solid #ccc; text-align:center;">${v.toLocaleString('es-CL')}</td>`;
+            }).join('')}
+            <td style="padding: 3px 8px; border: 1px solid #ccc; text-align:center; font-weight: bold; background: #f2f2f2;">${totalFila.toLocaleString('es-CL')}</td>
+        </tr>`;
+    });
+
+    html += `</tbody></table>`;
+    contenedor.innerHTML = html;
+}
+
+// Nueva función para copiar la columna de arriba hacia abajo
+function copiarColumnaVertical(colIdx) {
+    const tabla = document.getElementById('tabla-equipos-datos');
+    if (!tabla) return;
+
+    let valores = [];
+    
+    // 1. Capturamos la cabecera (el nombre del mes) de la columna seleccionada
+    const cabecera = tabla.querySelector(`thead tr th:nth-child(${colIdx + 1})`);
+    if (cabecera) {
+        // Limpiamos el texto para quitar la palabra "Copiar" del botón
+        let nombreMes = cabecera.innerText.split('\n')[0].trim(); 
+        valores.push(nombreMes);
+    }
+
+    // 2. Capturamos los datos de cada fila de esa misma columna
+    const filasBody = tabla.querySelectorAll('tbody tr');
+    filasBody.forEach(fila => {
+        const celda = fila.children[colIdx];
+        if (celda) {
+            // Quitamos puntos de miles para que Excel lo pegue como número
+            let valorLimpio = celda.innerText.replace(/\./g, '').trim();
+            valores.push(valorLimpio);
+        }
+    });
+
+    // 3. Unimos con salto de línea para que al pegar en Excel sea una columna
+    const textoACopiar = valores.join('\n');
+    
+    navigator.clipboard.writeText(textoACopiar).then(() => {
+        showToast(`✅ Columna ${valores[0]} copiada con éxito`);
+    }).catch(err => {
+        console.error('Error al copiar: ', err);
+    });
+}
+
+function ejecutarCopiaTipos(colIdx) {
+    try {
+        // 1. Extraer valores del mes seleccionado
+        const valoresEquipos = DATOS_TIPOS_EQUIPO
+            .filter(item => !item.esFilaTotal && item.tipo !== "TOTAL")
+            .map(item => item.valores[colIdx]);
+
+        const filaTotal = DATOS_TIPOS_EQUIPO.find(item => item.esFilaTotal || item.tipo === "TOTAL");
+        const valorTotalMes = filaTotal ? filaTotal.valores[colIdx] : 0;
+
+        // 2. Unir con tabuladores para Sheets (Horizontal)
+        const textoFinal = [...valoresEquipos, valorTotalMes].join('\t');
+
+        // 3. Crear elemento temporal y copiar
+        const el = document.createElement('textarea');
+        el.value = textoFinal;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+
+        // --- SOLUCIÓN PARA LA NOTIFICACIÓN ---
+        // Buscamos el elemento del toast en tu HTML
+        const toast = document.getElementById('toast-container');
+        const toastMsg = document.getElementById('toast-message');
+
+        if (toast && toastMsg) {
+            toastMsg.textContent = "¡Copiado horizontalmente!";
+            toast.classList.remove('toast-hidden');
+            toast.classList.add('toast-show');
+
+            // Lo ocultamos después de 2 segundos
+            setTimeout(() => {
+                toast.classList.remove('toast-show');
+                toast.classList.add('toast-hidden');
+            }, 2000);
+        } else {
+            // Si no encuentra los IDs, intentamos llamar a la función global
+            if (typeof mostrarToast === "function") {
+                mostrarToast("¡Copiado!");
+            }
+        }
+
+    } catch (err) {
+        console.error("Error al copiar:", err);
+    }
+}
+function copiarColumnaTiposHorizontal(colIdx) {
+    try {
+        // 1. Extraer valores
+        const valoresEquipos = DATOS_TIPOS_EQUIPO
+            .filter(item => !item.esFilaTotal && item.tipo !== "TOTAL")
+            .map(item => item.valores[colIdx]);
+
+        const filaTotal = DATOS_TIPOS_EQUIPO.find(item => item.esFilaTotal || item.tipo === "TOTAL");
+        const valorTotalMes = filaTotal ? filaTotal.valores[colIdx] : 0;
+
+        // 2. Unir con tabuladores para Sheets (Horizontal)
+        const textoFinal = [...valoresEquipos, valorTotalMes].join('\t');
+
+        // 3. Intento de copia moderna
+        navigator.clipboard.writeText(textoFinal).then(() => {
+            lanzarNotificacionCopiado();
+        }).catch(err => {
+            // 4. Método de respaldo (Fallback) si el anterior falla
+            const textArea = document.createElement("textarea");
+            textArea.value = textoFinal;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            lanzarNotificacionCopiado();
+        });
+    } catch (err) {
+        console.error("Error al copiar:", err);
+    }
+}
+
+// Función auxiliar para no repetir código del aviso
+function lanzarNotificacionCopiado() {
+    if (typeof mostrarToast === "function") {
+        mostrarToast("¡Copiado horizontalmente!");
+    } else if (typeof copiarTextoDirecto === "function") {
+        // En algunos de tus scripts el toast se dispara así
+        mostrarToast("¡Copiado!");
+    } else {
+        console.log("Datos copiados al portapapeles.");
+    }
+}
+
+
+// --- FUNCIÓN DE UTILIDAD AL FINAL DEL SCRIPT ---
+function extraerMesDeCSV(fechaRaw) {
+    const mesesNombres = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sept", "oct", "nov", "dic"];
+    
+    // Limpiamos espacios o comillas que puedan venir del CSV
+    const fechaLimpia = String(fechaRaw).replace(/"/g, '').trim();
+    
+    // Intentamos detectar el separador (puede ser / o -)
+    const partes = fechaLimpia.split(/[-/]/);
+    
+    // Si no tiene el formato esperado, devolvemos un genérico
+    if (partes.length < 2) return "MES NUEVO";
+
+    let mesIdx;
+    let año;
+
+    // Lógica dinámica para detectar orden de fecha:
+    if (partes[0].length === 4) {
+        // Formato YYYY-MM-DD
+        mesIdx = parseInt(partes[1]) - 1;
+        año = partes[0].slice(-2);
+    } else {
+        // Formato DD/MM/YYYY
+        mesIdx = parseInt(partes[1]) - 1;
+        año = partes[2] ? partes[2].slice(-2) : "26";
+    }
+
+    // Validamos que el índice del mes sea correcto (0 a 11)
+    if (isNaN(mesIdx) || mesIdx < 0 || mesIdx > 11) return "MES NUEVO";
+
+    return `${mesesNombres[mesIdx]} ${año}`.toUpperCase();
+}
+
+function generarConclusionesDinamicas(mes, datosMDA, datosResi, totalMes) {
+    const contenedor = document.getElementById('conclusiones-dinamicas-body');
+    if (!contenedor) return;
+
+    // Cálculos
+    const dimensionado = 1300;
+    const porcDiferenciaDim = (((dimensionado - totalMes) / dimensionado) * 100).toFixed(1);
+    const porcMDA = ((datosMDA.solucionados / (totalMes || 1)) * 100).toFixed(1);
+    const porcGlobal = ((datosMDA.mesaHP / (totalMes || 1)) * 100).toFixed(1);
+    const porcResiTotal = ((datosResi.total / (totalMes || 1)) * 100).toFixed(1);
+    const porcCAPJ = datosResi.total > 0 ? ((datosResi.capj / datosResi.total) * 100).toFixed(1) : 0;
+    const porcCJ = datosResi.total > 0 ? ((datosResi.cj / datosResi.total) * 100).toFixed(1) : 0;
+
+    // Redacción alineada a la izquierda (text-align: left)
+    contenedor.innerHTML = `
+        <div style="width: 100%; text-align: left; font-size: 16px;">
+            <p>El informe de gestión del servicio de Mesa de Ayuda y Soporte Computacional para el proyecto PJUD 5 durante el mes de <strong>${mes}</strong> presenta un desempeño efectivo y alineado con los objetivos del servicio. Este mes hubo un flujo de requerimientos constante, demostrando una alta capacidad de resolución y una gestión eficiente de los recursos.</p>
+            
+            <ul style="margin-top: 20px; list-style-type: disc; padding-left: 25px; text-align: left;">
+                <li style="margin-bottom: 15px;">
+                    <strong>Volumen de Requerimientos:</strong> Se gestionó un total de <strong>${totalMes.toLocaleString('es-CL')}</strong> requerimientos, lo que se sitúa un <strong>${porcDiferenciaDim}%</strong> por debajo de los requerimientos dimensionados para el servicio.
+                </li>
+                <li style="margin-bottom: 15px;">
+                    <strong>Tasa de Resolución:</strong> El servicio mantuvo una sólida tasa de resolución. La Mesa de Ayuda solucionó directamente el <strong>${porcMDA}%</strong> de los requerimientos, mientras que la tasa de resolución de la mesa HP (incluyendo gestiones de residentes y SCO) alcanzó el <strong>${porcGlobal}%</strong>.
+                </li>
+                <li style="margin-bottom: 15px;">
+                    <strong>Gestión de Canales de Atención:</strong> La Mesa de Ayuda resolvió la mayoría de los casos de forma remota, mientras que un <strong>${porcResiTotal}%</strong> de los requerimientos fueron derivados a los técnicos residentes. Las residencias de <strong>CAPJ</strong> y <strong>Centro de Justicia</strong> generaron un <strong>${porcCAPJ}%</strong> y un <strong>${porcCJ}%</strong> respectivamente del total de atenciones en Residencia.
+                </li>
+            </ul>
+        </div>
+    `;
+}
+
