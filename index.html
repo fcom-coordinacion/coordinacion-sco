@@ -6,6 +6,8 @@
     <title>Gestión SCO - Continuidad Operativa</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+   
+ 
 </head>
 <body>
 
@@ -79,24 +81,24 @@
                     </div>
                 </div>
 
-              <div class="card">
-    <table id="tickets-table">
-        <thead>
-            <tr>
-                <th>Proyecto</th>
-                <th>Ticket</th>
-                <th>Estado</th>
-                <th>Grupo</th> 
-                <th>Tipo</th> <th>Dependencia</th>
-                <th style="background-color: #f0f8ff;">Fecha/Hora</th>
-                <th style="background-color: #f0f8ff;">Técnico</th>
-                <th style="text-align:center;">Backup</th>
-                <th>Acción</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
-</div>
+                <div class="card">
+                    <table id="tickets-table">
+                        <thead>
+                            <tr>
+                                <th>Proyecto</th>
+                                <th>Ticket</th>
+                                <th>Estado</th>
+                                <th>Grupo</th> 
+                                <th>Tipo</th> <th>Dependencia</th>
+                                <th style="background-color: #f0f8ff;">Fecha/Hora</th>
+                                <th style="background-color: #f0f8ff;">Técnico</th>
+                                <th style="text-align:center;">Backup</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
 
                 <div class="card hidden" id="coord-editor" style="border: none; box-shadow: none; padding: 0;">
                     <div class="pjud-header-toggle" onclick="toggleSection('editor-body', 'icon-editor')">
@@ -246,26 +248,27 @@
             </div>
 
             <div id="mod-reportes" class="module hidden">
-                <h1>Generación de Reportes</h1>
+                <h1>Generación de Reportes e Informes</h1>
                 <div class="tabs-container">
                     <button class="tab-btn active" onclick="switchReportTab('tab-informativo', this)"><i class="fas fa-tools"></i> Informativo Técnico</button>
                     <button class="tab-btn" onclick="switchReportTab('tab-cambios', this)"><i class="fas fa-exchange-alt"></i> Control de Cambios</button>
                     <button class="tab-btn" onclick="switchReportTab('tab-antivirus', this)"><i class="fas fa-shield-alt"></i> Reporte Antivirus</button>
                     <button class="tab-btn" onclick="switchReportTab('tab-guias-pendientes', this)"><i class="fas fa-file-invoice"></i> Guías Pendientes</button>
                     <button class="tab-btn" onclick="switchReportTab('tab-en-blanco', this)" style="border-left: 2px solid #6c757d;"><i class="fas fa-eraser"></i> En blanco</button>
+                    <button class="tab-btn" onclick="switchReportTab('tab-informe-mda', this)"><i class="fas fa-chart-pie"></i> Informe Mensual MDA</button>
                 </div>
 
                 <div id="tab-informativo" class="tab-content active-content">
-    <div class="card">
-        <p style="margin-bottom: 15px;">Genera un correo resumen con todas las actividades cargadas actualmente en el sistema.</p>
-        <div class="coord-row-inline">
-            <button class="btn-primary" onclick="generarInformativoTecnico()">
-                <i class="fas fa-list-alt"></i> Generar Informativo
-            </button>
-        </div>
-    </div>
-    <div id="info-result-container" class="card hidden" style="margin-top: 20px; border: none; padding: 0;"></div>
-</div>
+                    <div class="card">
+                        <p style="margin-bottom: 15px;">Genera un correo resumen con todas las actividades cargadas actualmente en el sistema.</p>
+                        <div class="coord-row-inline">
+                            <button class="btn-primary" onclick="generarInformativoTecnico()">
+                                <i class="fas fa-list-alt"></i> Generar Informativo
+                            </button>
+                        </div>
+                    </div>
+                    <div id="info-result-container" class="card hidden" style="margin-top: 20px; border: none; padding: 0;"></div>
+                </div>
 
                 <div id="tab-cambios" class="tab-content hidden-content">
                     <div class="card">
@@ -321,34 +324,163 @@
                 </div>
 
                 <div id="tab-en-blanco" class="tab-content hidden-content">
-    <div class="card p-4 shadow-sm" style="border-top: 4px solid #6c757d; border-radius: 8px;">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 style="color: #495057; margin: 0;"><i class="fas fa-file-invoice text-muted me-2"></i> Reporte de Requerimientos sin Rellenar</h5>
-            <span class="badge bg-secondary" style="font-size: 0.8rem; padding: 5px 10px; border-radius: 4px; background-color: #6c757d; color: white;">Auditoría Técnica</span>
-        </div>
-        <p class="text-muted small">Este reporte identifica tickets finalizados donde el <strong>Tipo de Equipo</strong> o el <strong>Modelo</strong> no fueron registrados correctamente por el técnico.</p>
-        <div class="coord-row-inline" style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; border: 1px solid #ddd; margin-bottom: 15px;">
-            
-            <div class="input-group-small">
-                <label>Proyecto</label>
-                <select id="blanco-filtro-proyecto" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; background-color: white;">
-                    <option value="TODOS">Todos los Proyectos</option>
-                    <option value="PJUD 4">PJUD 4</option>
-                    <option value="PJUD 5">PJUD 5</option>
-                </select>
-            </div>
-            
-            <div class="input-group-small"><label>Fecha Inicio (Finalización)</label><input type="date" id="blanco-fecha-inicio"></div>
-            <div class="input-group-small"><label>Fecha Fin (Finalización)</label><input type="date" id="blanco-fecha-fin"></div>
-            <div style="flex: 2; display: flex; align-items: flex-end; gap: 10px;">
-                <button class="btn-primary" onclick="generarReporteEnBlanco()"><i class="fas fa-search"></i> Buscar Casos</button>
-                <button class="btn-primary" onclick="exportarReporteBlancoExcel()" style="background-color: #198754; border-color: #198754;"><i class="fas fa-download"></i> Exportar Excel</button>
-                <button class="btn-secondary" onclick="document.getElementById('blanco-result-container').innerHTML=''; document.getElementById('blanco-result-container').classList.add('hidden');"><i class="fas fa-trash-alt"></i> Limpiar</button>
-            </div>
-        </div>
-        <div id="blanco-result-container" class="hidden mt-3" style="min-height: 100px;"></div>
+                    <div class="card p-4 shadow-sm" style="border-top: 4px solid #6c757d; border-radius: 8px;">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 style="color: #495057; margin: 0;"><i class="fas fa-file-invoice text-muted me-2"></i> Reporte de Requerimientos sin Rellenar</h5>
+                            <span class="badge bg-secondary" style="font-size: 0.8rem; padding: 5px 10px; border-radius: 4px; background-color: #6c757d; color: white;">Auditoría Técnica</span>
+                        </div>
+                        <p class="text-muted small">Este reporte identifica tickets finalizados donde el <strong>Tipo de Equipo</strong> o el <strong>Modelo</strong> no fueron registrados correctamente por el técnico.</p>
+                        <div class="coord-row-inline" style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; border: 1px solid #ddd; margin-bottom: 15px;">
+                            
+                            <div class="input-group-small">
+                                <label>Proyecto</label>
+                                <select id="blanco-filtro-proyecto" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; background-color: white;">
+                                    <option value="TODOS">Todos los Proyectos</option>
+                                    <option value="PJUD 4">PJUD 4</option>
+                                    <option value="PJUD 5">PJUD 5</option>
+                                </select>
+                            </div>
+                            
+                            <div class="input-group-small"><label>Fecha Inicio (Finalización)</label><input type="date" id="blanco-fecha-inicio"></div>
+                            <div class="input-group-small"><label>Fecha Fin (Finalización)</label><input type="date" id="blanco-fecha-fin"></div>
+                            <div style="flex: 2; display: flex; align-items: flex-end; gap: 10px;">
+                                <button class="btn-primary" onclick="generarReporteEnBlanco()"><i class="fas fa-search"></i> Buscar Casos</button>
+                                <button class="btn-primary" onclick="exportarReporteBlancoExcel()" style="background-color: #198754; border-color: #198754;"><i class="fas fa-download"></i> Exportar Excel</button>
+                                <button class="btn-secondary" onclick="document.getElementById('blanco-result-container').innerHTML=''; document.getElementById('blanco-result-container').classList.add('hidden');"><i class="fas fa-trash-alt"></i> Limpiar</button>
+                            </div>
+                        </div>
+                        <div id="blanco-result-container" class="hidden mt-3" style="min-height: 100px;"></div>
+                    </div>
+                </div>
+
+                <div id="tab-informe-mda" class="tab-content hidden-content">
+                    <div class="card p-4 shadow-sm" style="border-top: 4px solid #17a2b8; border-radius: 8px;">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 style="color: #495057; margin: 0;"><i class="fas fa-chart-pie text-muted me-2"></i> Informe Mensual MDA</h5>
+                            <span class="badge bg-info" style="font-size: 0.8rem; padding: 5px 10px; border-radius: 4px; color: white;">Dashboard</span>
+                        </div>
+                        <p class="text-muted small">Generador de tablas y gráficos. <strong>Sube el archivo CSV limpio del proyecto y mes que deseas analizar.</strong> El sistema procesará todos los registros cargados.</p>
+                        
+                        <div class="coord-row-inline" style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; border: 1px solid #ddd; margin-bottom: 15px;">
+                            <div class="input-group-small" style="flex: 2;">
+                                <label style="font-weight:bold; color:#555;">Cargar Data Limpia (CSV)</label>
+                                <input type="file" id="csv-informe-mda" accept=".csv, .txt" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; width: 100%; background: white;">
+                            </div>
+                            <div style="flex: 1; display: flex; align-items: flex-end;">
+                                <button class="btn-primary" onclick="generarInformeMDA()" style="background-color: #17a2b8; border-color: #17a2b8; width: 100%;">
+                                    <i class="fas fa-magic"></i> Generar Informe
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="mda-result-container" class="hidden mt-3"></div>
+                        
+                        <div class="card" style="border: 1px solid #ddd; padding: 0; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-top: 20px;">
+                            <div class="pjud-header-toggle" onclick="toggleSection('mda-historico-body', 'icon-mda-historico')" style="background: #f8f9fa; border-top: 4px solid #198754; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; border-radius: 4px 4px 0 0;">
+                                <h4 style="color: #198754; margin: 0; font-family: Segoe UI, sans-serif; font-weight: bold;">
+                                    <i class="fas fa-chart-line" style="margin-right: 8px;"></i> Registro de requerimientos acumulados MDA soporte HP
+                                </h4>
+                                <i id="icon-mda-historico" class="fas fa-chevron-up rotate-icon" style="color: #198754;"></i>
+                            </div>
+                            
+                            <div id="mda-historico-body" class="hidden-content" style="padding: 20px; background: #fff; border-radius: 0 0 4px 4px;">
+                                <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 30px;">
+                                    
+                                 <div style="flex: 1; min-width: 500px; border: 1px solid #eee; padding: 15px; position: relative;">
+    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+        <h5 style="text-align: center; flex: 1;">Acumulado Mesa HP</h5>
+        <button onclick="copiarGrafico('chartAcumulado')" class="btn btn-sm btn-outline-secondary"><i class="fas fa-copy"></i></button>
+    </div>
+    <div style="height: 350px; position: relative;">
+        <canvas id="chartAcumulado"></canvas>
     </div>
 </div>
+
+<div style="flex: 1; min-width: 400px; border: 1px solid #eee; padding: 15px; position: relative;">
+    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+        <h5 style="text-align: center; flex: 1;">Gestiones mensuales Mesa HP</h5>
+        <button onclick="copiarGrafico('chartGestiones')" class="btn btn-sm btn-outline-secondary"><i class="fas fa-copy"></i></button>
+    </div>
+    <div style="height: 350px; position: relative;">
+        <canvas id="chartGestiones"></canvas>
+    </div>
+</div>
+                                </div>
+
+                                <div style="overflow-x: auto;">
+                                    <table id="tabla-historica-mda" style="width: 100%; border-collapse: collapse; font-family: Calibri, sans-serif; font-size: 12px; text-align: center; white-space: nowrap; border: 1px solid #1a3b6c;">
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card" style="border: 1px solid #ddd; padding: 0; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-top: 20px;">
+                            <div class="pjud-header-toggle" onclick="toggleSection('mda-canales-body', 'icon-mda-canales')" style="background: #f8f9fa; border-top: 4px solid #4b74b1; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; border-radius: 4px 4px 0 0;">
+                                <h4 style="color: #4b74b1; margin: 0; font-family: Segoe UI, sans-serif; font-weight: bold;">
+                                    <i class="fas fa-exchange-alt" style="margin-right: 8px;"></i> Comparativa histórica por canal de atención
+                                </h4>
+                                <i id="icon-mda-canales" class="fas fa-chevron-up rotate-icon" style="color: #4b74b1;"></i>
+                            </div>
+                            
+                            <div id="mda-canales-body" class="hidden-content" style="padding: 20px; background: #fff; border-radius: 0 0 4px 4px;">
+    <p style="margin-bottom: 20px; color: #555; font-size: 14px;">
+        Este gráfico detalla la relación mensual entre la atención remota (MDA) y la atención presencial de técnicos residentes.
+    </p>
+    
+    <div id="contenedor-unificado-canales" style="border: 1px solid #eee; padding: 10px; border-radius: 4px;">
+        <div style="height: 350px; position: relative;">
+            <canvas id="chartCanalAtencion"></canvas>
+        </div>
+        <div id="tabla-inferior-canales"></div>
+    </div>
+</div>
+                        </div>
+
+                        <div id="contenedor-detalle-mda" class="mt-4"></div>
+                        <div class="card" style="border: 1px solid #ddd; padding: 0; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-top: 20px;">
+    <div class="pjud-header-toggle" onclick="toggleSection('mda-equipos-body', 'icon-mda-equipos')" style="background: #f8f9fa; border-top: 4px solid #2a579a; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; border-radius: 4px 4px 0 0;">
+        <h4 style="color: #2a579a; margin: 0; font-family: Segoe UI, sans-serif; font-weight: bold;">
+            <i class="fas fa-tools" style="margin-right: 8px;"></i> Reporte de fallas más recurrentes según tipo de equipo
+        </h4>
+        <i id="icon-mda-equipos" class="fas fa-chevron-up rotate-icon" style="color: #2a579a;"></i>
+    </div>
+    
+    <div id="mda-equipos-body" class="hidden-content" style="padding: 20px; background: #fff; border-radius: 0 0 4px 4px;">
+        <p style="margin-bottom: 15px; color: #555; font-size: 14px;">
+            Detalle histórico de requerimientos atendidos por  tipo de equipo y periférico.
+        </p>
+        <div id="tabla-fallas-equipos" style="overflow-x: auto; border: 1px solid #eee; border-radius: 4px;">
+            <div style="text-align:center; padding: 20px; color: #999;">
+                <i class="fas fa-spinner fa-spin"></i> Cargando datos de equipos...
+            </div>
+        </div>
+    </div>
+    </div> 
+   <div class="card" style="border: 1px solid #ddd; padding: 0; margin-top: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); background: #fff;">
+    <div class="pjud-header-toggle" onclick="toggleSection('conclusiones-body-wrapper', 'icon-conclusiones')" style="background: #f8f9fa; border-top: 4px solid #6c757d; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+        <h4 style="color: #333; margin: 0; font-family: Segoe UI, sans-serif; font-weight: bold;">
+            <i class="fas fa-file-alt" style="margin-right: 8px;"></i> Conclusión del Informe
+        </h4>
+        <i id="icon-conclusiones" class="fas fa-chevron-up rotate-icon"></i>
+    </div>
+
+    <div id="conclusiones-body-wrapper">
+        <div id="conclusiones-dinamicas-body" style="padding: 30px; font-family: Calibri, sans-serif; line-height: 1.6; color: #333; text-align: left;">
+            <div style="text-align:left; color: #999;">
+                <i class="fas fa-info-circle"></i> Sube un archivo CSV para generar el análisis automático de conclusiones.
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+                    </div>
+
+                    
+                </div>
+
+
+
 
             </div>
 
@@ -381,7 +513,12 @@
     <div id="toast-container" class="toast-hidden">
         <i class="fas fa-check-circle"></i> <span id="toast-message">Copiado al portapapeles</span>
     </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    
     <script src="catalogos.js"></script>
+    
     <script src="script.js"></script>
 
     <script>
