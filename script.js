@@ -1342,7 +1342,7 @@ function generarReporteAntivirus() {
     if (!inputFecha) return showToast("⚠️ Por favor selecciona una fecha.");
 
     const para = "myabrudez_fcom@pjud.cl"; 
-    const cc = "c.zapata@fcom.cl; s.guzman@fcom.cl; jmarrufo_hp@pjud.cl; roberto.miranda@fcom.cl; a.vacca@fcom.cl";
+    const cc = "c.zapata@fcom.cl; s.guzman@fcom.cl; jmarrufo_hp@pjud.cl;  a.vacca@fcom.cl";
     
     const [y, m, d] = inputFecha.split('-');
     const fechaFormat = `${d}/${m}/${y}`;
