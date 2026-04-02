@@ -361,6 +361,14 @@
                         </div>
                         <p class="text-muted small">Generador de tablas y gráficos. <strong>Sube el archivo CSV limpio del proyecto y mes que deseas analizar.</strong> El sistema procesará todos los registros cargados.</p>
                         
+<div style="margin-bottom: 20px; padding: 10px; background: #f8f9fa; border-radius: 8px; border: 1px solid #ddd;">
+    <label style="font-weight: bold; margin-right: 10px;">Proyecto actual:</label>
+    <select onchange="cambiarProyecto(this.value)" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer;">
+        <option value="PJUD5">PJUD 5</option>
+        <option value="PJUD4">PJUD 4</option>
+    </select>
+</div>
+
                         <div class="coord-row-inline" style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; border: 1px solid #ddd; margin-bottom: 15px;">
                             <div class="input-group-small" style="flex: 2;">
                                 <label style="font-weight:bold; color:#555;">Cargar Data Limpia (CSV)</label>
@@ -456,6 +464,9 @@
         </div>
     </div>
     </div> 
+
+<div id="mda-agentes-container"></div>
+
    <div class="card" style="border: 1px solid #ddd; padding: 0; margin-top: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); background: #fff;">
     <div class="pjud-header-toggle" onclick="toggleSection('conclusiones-body-wrapper', 'icon-conclusiones')" style="background: #f8f9fa; border-top: 4px solid #6c757d; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
         <h4 style="color: #333; margin: 0; font-family: Segoe UI, sans-serif; font-weight: bold;">
@@ -517,8 +528,9 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     
-    <script src="catalogos.js?v=1.1"></script>
-    <script src="script.js?v=1.1"></script>
+    <script src="catalogos.js"></script>
+    
+    <script src="script.js"></script>
 
     <script>
     (function(){if(!window.chatbase||window.chatbase("getState")!=="initialized"){window.chatbase=(...arguments)=>{if(!window.chatbase.q){window.chatbase.q=[]}window.chatbase.q.push(arguments)};window.chatbase=new Proxy(window.chatbase,{get(target,prop){if(prop==="q"){return target.q}return(...args)=>target(prop,...args)}})}const onLoad=function(){const script=document.createElement("script");script.src="https://www.chatbase.co/embed.min.js";script.id="fqZGLM-qPO7qIULZRykqc";script.domain="www.chatbase.co";document.body.appendChild(script)};if(document.readyState==="complete"){onLoad()}else{window.addEventListener("load",onLoad)}})();
