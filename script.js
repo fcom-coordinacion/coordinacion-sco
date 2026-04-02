@@ -145,8 +145,8 @@ function processData() {
         }
 
         rows.forEach((row) => {
-            const delimiter = row.includes('\t') ? '\t' : ';';
-            const cols = row.split(delimiter);
+            // Cambia esas dos líneas por esta única:
+const cols = row.split(';');
 
             if (cols.length < 5) return; 
             
@@ -1342,7 +1342,7 @@ function generarReporteAntivirus() {
     if (!inputFecha) return showToast("⚠️ Por favor selecciona una fecha.");
 
     const para = "myabrudez_fcom@pjud.cl"; 
-    const cc = "c.zapata@fcom.cl; s.guzman@fcom.cl; jmarrufo_hp@pjud.cl;  a.vacca@fcom.cl";
+    const cc = "c.zapata@fcom.cl; s.guzman@fcom.cl; jmarrufo_hp@pjud.cl; roberto.miranda@fcom.cl; a.vacca@fcom.cl";
     
     const [y, m, d] = inputFecha.split('-');
     const fechaFormat = `${d}/${m}/${y}`;
@@ -1386,6 +1386,9 @@ function generarReporteAntivirus() {
             serieDespachada = t.despachosRaw ? t.despachosRaw.trim() : "Pendiente Validar";
         }
 
+        // Estilo de color para el Backup
+        const backupStyle = t.backup === "SI" ? "color: #dc3545; font-weight: bold;" : "color: #28a745;";
+
         filasHTML += `
             <tr style="border-bottom: 1px solid #ddd;">
                 <td style="padding: 5px; border: 1px solid #ccc;">${t.proyecto || ""}</td>
@@ -1395,10 +1398,24 @@ function generarReporteAntivirus() {
                 <td style="padding: 5px; border: 1px solid #ccc;">${t.solucion || ""}</td>
                 <td style="padding: 5px; border: 1px solid #ccc;">${t.serie || ""}</td>
                 <td style="padding: 5px; border: 1px solid #ccc;">${serieDespachada}</td>
+                <td style="padding: 5px; border: 1px solid #ccc; text-align:center; ${backupStyle}">${t.backup || "NO"}</td>
                 <td style="padding: 5px; border: 1px solid #ccc;">${t.ip || ""}</td>
             </tr>
         `;
     });
+
+    // Encabezado de tabla (agregamos columna BACKUP)
+    const headersHTML = `
+        <th style="padding: 5px; border: 1px solid #ddd;">PROYECTO</th>
+        <th style="padding: 5px; border: 1px solid #ddd;">TK</th>
+        <th style="padding: 5px; border: 1px solid #ddd;">GRUPO RESOLUTOR</th>
+        <th style="padding: 5px; border: 1px solid #ddd;">TIPO</th>
+        <th style="padding: 5px; border: 1px solid #ddd;">SOLUCION TERRENO</th>
+        <th style="padding: 5px; border: 1px solid #ddd;">SERIE REPORTADA</th>
+        <th style="padding: 5px; border: 1px solid #ddd;">SERIE DESPACHADA</th>
+        <th style="padding: 5px; border: 1px solid #ddd;">BACKUP</th>
+        <th style="padding: 5px; border: 1px solid #ddd;">IP</th>
+    `;
 
     const tablaVisual = `
         <div class="card" style="border: none; padding: 0; background: transparent; margin-bottom: 20px;">
@@ -1410,16 +1427,7 @@ function generarReporteAntivirus() {
                 <div style="max-height: 300px; overflow-y: auto; border: 1px solid #ccc; border-top: none;">
                     <table id="tabla-antivirus" style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; font-size: 11px;">
                         <thead style="background-color: #4a6fa5; color: white; position: sticky; top: 0; z-index: 10;">
-                            <tr>
-                                <th style="padding: 5px; border: 1px solid #ddd;">PROYECTO</th>
-                                <th style="padding: 5px; border: 1px solid #ddd;">TK</th>
-                                <th style="padding: 5px; border: 1px solid #ddd;">GRUPO RESOLUTOR</th>
-                                <th style="padding: 5px; border: 1px solid #ddd;">TIPO</th>
-                                <th style="padding: 5px; border: 1px solid #ddd;">SOLUCION TERRENO</th>
-                                <th style="padding: 5px; border: 1px solid #ddd;">SERIE REPORTADA</th>
-                                <th style="padding: 5px; border: 1px solid #ddd;">SERIE DESPACHADA</th>
-                                <th style="padding: 5px; border: 1px solid #ddd;">IP</th>
-                            </tr>
+                            <tr>${headersHTML}</tr>
                         </thead>
                         <tbody>${filasHTML}</tbody>
                     </table>
@@ -1456,16 +1464,7 @@ function generarReporteAntivirus() {
                     <br><br>
                     <table style="border-collapse: collapse; width: 100%; border: 1px solid #999; font-family: Calibri, sans-serif; font-size: 10pt;">
                         <thead style="background-color: #e6e6e6;">
-                            <tr>
-                                <th style="border: 1px solid #999; padding: 4px; text-align: left;">PROYECTO</th>
-                                <th style="border: 1px solid #999; padding: 4px; text-align: left;">TK</th>
-                                <th style="border: 1px solid #999; padding: 4px; text-align: left;">GRUPO RESOLUTOR</th>
-                                <th style="border: 1px solid #999; padding: 4px; text-align: left;">TIPO</th>
-                                <th style="border: 1px solid #999; padding: 4px; text-align: left;">SOLUCION TERRENO</th>
-                                <th style="border: 1px solid #999; padding: 4px; text-align: left;">SERIE REPORTADA</th>
-                                <th style="border: 1px solid #999; padding: 4px; text-align: left;">SERIE DESPACHADA</th>
-                                <th style="border: 1px solid #999; padding: 4px; text-align: left;">IP</th>
-                            </tr>
+                            <tr>${headersHTML.replace(/#ddd/g, '#999').replace(/padding: 5px/g, 'padding: 4px')}</tr>
                         </thead>
                         <tbody>${filasHTML}</tbody>
                     </table>
@@ -1486,6 +1485,7 @@ function generarReporteAntivirus() {
     container.innerHTML = tablaVisual + correoHTML;
     container.classList.remove('hidden');
 }
+
 
 function copiarTablaAntivirus() {
     const tabla = document.getElementById('tabla-antivirus');
