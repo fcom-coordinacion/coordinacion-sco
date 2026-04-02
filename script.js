@@ -146,7 +146,7 @@ function processData() {
 
         rows.forEach((row) => {
             // Cambia esas dos líneas por esta única:
-const cols = row.split(';');
+             const cols = row.split(';');
 
             if (cols.length < 5) return; 
             
