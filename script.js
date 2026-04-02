@@ -3029,18 +3029,29 @@ function renderizarTablaTipos(meses) {
         let valoresFila = [...item.valores];
         let totalFila = item.total; 
 
-        if (DATOS_MANUAL_ACTUAL) {
-            let valorExtra = 0;
-            if (esFilaTotal) {
-                valorExtra = Object.values(DATOS_MANUAL_ACTUAL.equipos).reduce((a, b) => a + b, 0);
-            } else {
-                const searchKey = normalizarKey(item.tipo);
-                const matchKey = Object.keys(DATOS_MANUAL_ACTUAL.equipos).find(k => normalizarKey(k) === searchKey);
-                valorExtra = matchKey ? DATOS_MANUAL_ACTUAL.equipos[matchKey] : 0;
-            }
-            valoresFila.push(valorExtra);
-            totalFila += valorExtra; 
-        }
+if (DATOS_MANUAL_ACTUAL) {
+    let valorExtra = 0;
+    if (esFilaTotal) {
+        // CAMBIO AQUÍ: En lugar de sumar todo el objeto, sumamos solo lo que coincide 
+        // con los tipos de equipo definidos (excluyendo la palabra "TOTAL")
+        valorExtra = DATOS_TIPOS_EQUIPO
+            .filter(t => t.tipo !== "TOTAL") // No sumamos la fila total a sí misma
+            .reduce((suma, t) => {
+                const sKey = normalizarKey(t.tipo);
+                const match = Object.keys(DATOS_MANUAL_ACTUAL.equipos).find(k => normalizarKey(k) === sKey);
+                return suma + (match ? DATOS_MANUAL_ACTUAL.equipos[match] : 0);
+            }, 0);
+    } else {
+        const searchKey = normalizarKey(item.tipo);
+        const matchKey = Object.keys(DATOS_MANUAL_ACTUAL.equipos).find(k => normalizarKey(k) === searchKey);
+        valorExtra = matchKey ? DATOS_MANUAL_ACTUAL.equipos[matchKey] : 0;
+    }
+    
+    // El resto sigue igual...
+    valoresFila.push(valorExtra);
+    // IMPORTANTE: Asegúrate de que totalFila sume el valorExtra correctamente
+    totalFila = item.valores.reduce((a, b) => a + b, 0) + valorExtra; 
+}
 
         html += `<tr style="${esFilaTotal ? 'background: #f2f2f2; font-weight: bold;' : ''}">
             <td style="padding: 3px 8px; border: 1px solid #ccc; font-weight: bold; background: ${esFilaTotal ? '#f2f2f2' : '#f8f9fa'};">${item.tipo}</td>
