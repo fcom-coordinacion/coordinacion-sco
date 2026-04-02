@@ -6,6 +6,35 @@ let DATOS_HISTORICOS_MESES = []; // Los meses que vienen de Sheets (Ene, Feb...)
 let DATOS_MANUAL_ACTUAL = null;  // Los datos que subes por CSV (Marzo...)
 let DATOS_NUEVO_MES_HISTORICO = null;
 
+
+// === AGREGA ESTO AQUÍ ===
+let PROYECTO_ACTIVO = "PJUD5";
+
+const CONFIG_SHEETS = {
+    "PJUD5": {
+        gidHistorico: "2093520733",
+        gidEquipos: "1959700363"
+    },
+    "PJUD4": {
+        gidHistorico: "1085546001", // Reemplaza cuando lo tengas
+        gidEquipos: "115813631"     // Reemplaza cuando lo tengas
+    }
+};
+
+function cambiarProyecto(val) {
+    PROYECTO_ACTIVO = val;
+    showToast(`Cambiado a ${val}. Cargando datos históricos...`);
+    
+    // Al cambiar de proyecto, recargamos los datos de las hojas de Google
+    cargarDatosDesdeSheets();
+    cargarDatosTipos();
+    
+    // Limpiamos el informe anterior para no confundir datos
+    const resultContainer = document.getElementById('mda-result-container');
+    if (resultContainer) resultContainer.classList.add('hidden');
+}
+// =========================
+
 // --- 0. LECTOR INTELIGENTE DE CSV (Faltaba esta función) ---
 function parseCSV(text, delimiter = ';') {
     let rows = [];
@@ -2064,6 +2093,107 @@ function generarInformeMDA() {
             }
         });
 
+        // === NUEVO: PROCESAMIENTO TABLA AGENTES ===
+        const agentesData = {};
+        const totalesPorEstado = { 'ANULADO': 0, 'SOLUCIONADO': 0, 'DERIVADO AREA': 0, 'DERIVADO SCO': 0, 'HABILITACION SCO': 0, 'RESIDENTES': 0 };
+
+        rows.forEach((cols, idx) => {
+            if (idx === 0 || cols.length < 5) return;
+            const agenteNom = cols[cols.length - 1] ? cols[cols.length - 1].trim() : "SIN AGENTE";
+            const solMDA = cols[14] ? cols[14].trim().toUpperCase() : "";
+
+            let eKey = "";
+            if (solMDA.includes("ANULADO")) eKey = "ANULADO";
+            else if (solMDA === "CONFIGURACIÓN") eKey = "SOLUCIONADO";
+            else if (solMDA === "DERIVADO OTRA AREA") eKey = "DERIVADO AREA";
+            else if (solMDA === "DERIVADO SCO") eKey = "DERIVADO SCO";
+            else if (solMDA === "HABILITACION SCO") eKey = "HABILITACION SCO";
+            else if (solMDA === "DERIVADO TERRENO") eKey = "RESIDENTES";
+
+            if (eKey !== "" && agenteNom !== "SIN AGENTE" && agenteNom !== "TECNICO") {
+                if (!agentesData[agenteNom]) agentesData[agenteNom] = { 'ANULADO': 0, 'SOLUCIONADO': 0, 'DERIVADO AREA': 0, 'DERIVADO SCO': 0, 'HABILITACION SCO': 0, 'RESIDENTES': 0, 'TOTAL': 0 };
+                agentesData[agenteNom][eKey]++;
+                agentesData[agenteNom]['TOTAL']++;
+                totalesPorEstado[eKey]++;
+            }
+        });
+
+        let filasAgentesHTML = "";
+        const sumaTotalGralAgentes = Object.values(totalesPorEstado).reduce((a, b) => a + b, 0);
+        Object.keys(agentesData).sort().forEach(ag => {
+            const d = agentesData[ag];
+            const p = (val, tot) => tot > 0 ? ((val / tot) * 100).toFixed(2) + '%' : '0.00%';
+            filasAgentesHTML += `
+                <tr style="border-bottom: 1px solid #ddd; font-size: 12px; text-align: center;">
+                    <td style="text-align: left; padding: 5px 10px; font-weight: bold; background: #f9f9f9;">${ag}</td>
+                    <td>${p(d['ANULADO'], totalesPorEstado['ANULADO'])}</td>
+                    <td>${p(d['SOLUCIONADO'], totalesPorEstado['SOLUCIONADO'])}</td>
+                    <td>${p(d['DERIVADO AREA'], totalesPorEstado['DERIVADO AREA'])}</td>
+                    <td>${p(d['DERIVADO SCO'], totalesPorEstado['DERIVADO SCO'])}</td>
+                    <td>${p(d['HABILITACION SCO'], totalesPorEstado['HABILITACION SCO'])}</td>
+                    <td>${p(d['RESIDENTES'], totalesPorEstado['RESIDENTES'])}</td>
+                    <td style="font-weight: bold; background: #f0f4f8;">${p(d['TOTAL'], sumaTotalGralAgentes)}</td>
+                </tr>`;
+        });
+const totalAnuladosCorrecto = contadoresFinales['Anulado no Contacto'] + contadoresFinales['Anulado Usuario'];
+        const totalGeneralCorrecto = totalTicketsMesFiltro;
+
+// === VARIABLE CON EL DISEÑO DE LA TABLA ===
+        const tablaComparativaAgentesHTML = `
+            <div class="card" style="border: 1px solid #ddd; padding: 0; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-top: 20px;">
+                <div class="pjud-header-toggle" onclick="toggleSection('mda-agentes-body', 'icon-mda-agentes')" style="background: #f8f9fa; border-top: 4px solid #315e9a; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; border-radius: 4px 4px 0 0;">
+                    <h4 style="color: #315e9a; margin: 0; font-family: Segoe UI, sans-serif; font-weight: bold;">
+                        <i class="fas fa-users" style="margin-right: 8px;"></i> Comparativa de agentes de MDA
+                    </h4>
+                    <i id="icon-mda-agentes" class="fas fa-chevron-up rotate-icon" style="color: #315e9a;"></i>
+                </div>
+                
+                <div id="mda-agentes-body" class="hidden-content" style="padding: 20px; background: #fff; border-radius: 0 0 4px 4px;">
+                    <p style="margin-bottom: 15px; color: #555; font-size: 14px;">
+                        Detalle porcentual de atenciones por agente según el estado del ticket en el mes seleccionado.
+                    </p>
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; font-family: Calibri, sans-serif; font-size: 12px; border: 1px solid #1a3b6c;">
+                           <thead>
+    <tr style="background-color: #315e9a; color: white !important; text-align: center;">
+        <th style="padding: 8px; text-align: left; background-color: #315e9a; color: white !important;">AGENTE MESA</th>
+        <th style="background-color: #315e9a; color: white !important;">ANULADO</th>
+        <th style="background-color: #315e9a; color: white !important;">SOLUCIONADO</th>
+        <th style="background-color: #315e9a; color: white !important;">DERIVADO AREA</th>
+        <th style="background-color: #315e9a; color: white !important;">DERIVADO SCO</th>
+        <th style="background-color: #315e9a; color: white !important;">HABILITACION SCO</th>
+        <th style="background-color: #315e9a; color: white !important;">DERIVADO RESIDENTES</th>
+        <th style="background-color: #1a3b6c; color: white !important;">SUMA TOTAL</th>
+    </tr>
+</thead>
+                            <tbody>${filasAgentesHTML}</tbody>
+
+<tfoot style="background-color: #315e9a; color: white; font-weight: bold; text-align: center;">
+    <tr>
+        <td style="text-align: left; padding: 8px;">Cantidad total</td>
+        <td>${totalAnuladosCorrecto}</td>
+        <td>${contadoresFinales['Solucionados en MDA']}</td>
+        <td>${contadoresFinales['Derivado a Otra Área']}</td>
+        <td>${contadoresFinales['Derivado a SCO']}</td>
+        <td>${contadoresFinales['Habilitacion x SCO']}</td>
+        <td>${contadoresFinales['Derivado a Residencia']}</td>
+        <td style="background: #1a3b6c;">${totalGeneralCorrecto}</td>
+    </tr>
+</tfoot>    
+                        </table>
+                    </div>
+                </div>
+            </div>`;
+
+        // === INYECTAR EN EL CONTENEDOR DEL HTML ===
+        const containerAgentes = document.getElementById('mda-agentes-container');
+        if (containerAgentes) {
+            containerAgentes.innerHTML = tablaComparativaAgentesHTML;
+        }
+
+
+        // === FIN BLOQUE PROCESAMIENTO ===
+
         window.ultimoConteoResidencias = contadoresResidencias;
         window.ultimoTotalResidencias = totalResidencias;
 
@@ -2567,11 +2697,11 @@ const URL_TIPOS_JSONP = "https://docs.google.com/spreadsheets/d/1kFRvMmyHom4APfh
 // 3. FUNCIÓN MOTOR (CON PROXY PARA EVITAR ERROR CORS)
 function cargarDatosDesdeSheets() {
     const docId = '1kFRvMmyHom4APfhVqmdvHg_wSkKPH8Y0eJ5Z6HnVeq0';
-    const gid = '2093520733';
-    // Esta URL usa un formato que el navegador no bloquea
+    // Usamos el GID dinámico según el proyecto activo
+    const gid = CONFIG_SHEETS[PROYECTO_ACTIVO].gidHistorico;
+    
     const url = `https://docs.google.com/spreadsheets/d/${docId}/gviz/tq?tqx=responseHandler:manejarRespuestaSheets&gid=${gid}`;
-
-    console.log("Iniciando túnel de datos con Google Sheets...");
+    console.log(`Conectando a Sheets: Historico ${PROYECTO_ACTIVO} (GID: ${gid})`);
     
     const script = document.createElement('script');
     script.src = url;
@@ -2920,9 +3050,15 @@ function renderizarGraficoCanales() {
 }
 
 function cargarDatosTipos() {
-    console.log("Iniciando carga de reporte por equipos...");
+    const docId = '1kFRvMmyHom4APfhVqmdvHg_wSkKPH8Y0eJ5Z6HnVeq0';
+    // Usamos el GID dinámico según el proyecto activo
+    const gid = CONFIG_SHEETS[PROYECTO_ACTIVO].gidEquipos;
+    
+    const url = `https://docs.google.com/spreadsheets/d/${docId}/gviz/tq?tqx=responseHandler:manejarRespuestaTipos&gid=${gid}`;
+    console.log(`Conectando a Sheets: Equipos ${PROYECTO_ACTIVO} (GID: ${gid})`);
+    
     const script = document.createElement('script');
-    script.src = URL_TIPOS_JSONP;
+    script.src = url;
     document.body.appendChild(script);
 }
 
@@ -3029,6 +3165,7 @@ function renderizarTablaTipos(meses) {
         let valoresFila = [...item.valores];
         let totalFila = item.total; 
 
+       // --- BUSCA ESTE BLOQUE DENTRO DE DATOS_TIPOS_EQUIPO.forEach ---
 if (DATOS_MANUAL_ACTUAL) {
     let valorExtra = 0;
     if (esFilaTotal) {
