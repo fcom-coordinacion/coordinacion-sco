@@ -2085,7 +2085,7 @@ function generarInformeMDA() {
                 const numeroDiaSemana = fechaObj.getDay(); 
 
                 let colorFondo = "#ffffff"; 
-                if (numeroDiaSemana === 6) colorFondo = "#FFF9C4"; 
+                if (numeroDiaSemana === 6) colorFondo = "#d3efff"; 
                 if (numeroDiaSemana === 0) colorFondo = "#FFEBEE"; 
 
                 colFechas.push(fechaClave);
