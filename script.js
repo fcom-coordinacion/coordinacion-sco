@@ -228,7 +228,8 @@ const cols = row.split(';');
                 solucion: solucionLimpia, 
                 despachosRaw: cleanCol(33) || cleanCol(27) ,
                 solucionMDARaw: cleanCol(22),
-                fechaCreacion: cleanCol(6)
+                fechaCreacion: cleanCol(6),
+                AsignadoA:cleanCol(4)
             };
 
             if (savedCoords[ticketNum]) {
@@ -1065,7 +1066,7 @@ function generarReporteEnBlanco() {
         const jurShow = sinJurisdiccion ? `FALTA JURISDICCIÓN ${jurUpper === "GENERAL" ? '' : `("${t.jurisdiccion}")`}` : t.jurisdiccion;
         const depShow = sinDependencia ? "FALTA DEPENDENCIA" : t.dependencia;
 
-        const asignadoShow = t.finalizadoPor || "-";
+        const asignadoShow = t.AsignadoA || "-";
 
         tablaHTML += `
             <tr style="border-bottom: 1px solid #eee;">
@@ -2394,75 +2395,101 @@ const totalAnuladosCorrecto = contadoresFinales['Anulado no Contacto'] + contado
             </div>
         `;
 
-        // --- CONSTRUCCIÓN DEL HTML BASE FINAL ---
-        resultContainer.innerHTML = `
-            <div class="card" style="border: 1px solid #ddd; padding: 0; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                <div class="pjud-header-toggle" onclick="toggleSection('mda-atencion-body', 'icon-mda-atencion')" style="background: #f8f9fa; border-top: 4px solid #014f8b; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
-                    <h4 style="color: #014f8b; margin: 0; font-family: Segoe UI; font-weight: bold;"><i class="fas fa-list-alt"></i> Atención MDA</h4>
-                    <i id="icon-mda-atencion" class="fas fa-chevron-up rotate-icon"></i>
+// --- CONSTRUCCIÓN DEL HTML BASE FINAL (ORDEN PERSONALIZADO CORREGIDO) ---
+resultContainer.innerHTML = `
+    <div class="card" style="border: 1px solid #ddd; padding: 0; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+        <div class="pjud-header-toggle" onclick="toggleSection('mda-atencion-body', 'icon-mda-atencion')" style="background: #f8f9fa; border-top: 4px solid #014f8b; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+            <h4 style="color: #014f8b; margin: 0; font-family: Segoe UI; font-weight: bold;"><i class="fas fa-list-alt"></i> Atención MDA</h4>
+            <i id="icon-mda-atencion" class="fas fa-chevron-up rotate-icon"></i>
+        </div>
+        <div id="mda-atencion-body">
+            <div style="padding: 20px; background: #fff; display: flex; gap: 20px; flex-wrap: wrap;">
+                <div class="card-child" style="flex: 1; max-width: 480px;">
+                    <table style="width: 100%; border-collapse: collapse; font-family: Calibri; border: 1px solid #c0c0c0;">
+                        <thead style="background:#315e9a; color:white;">
+                            <tr>
+                                <th style="padding: 5px 10px; text-align: left;">ESTADOS</th>
+                                <th style="padding: 5px 10px; text-align:center;">
+                                    FOLIOS <button onclick="copiarColumnaFoliosMDA()" class="btn-copy-small" title="Copiar Folios"><i class="fas fa-copy"></i></button>
+                                </th>
+                                <th style="padding: 5px 10px; text-align:center;">
+                                    % <button onclick="copiarColumnaPorcentajesMDA()" class="btn-copy-small" title="Copiar Porcentajes"><i class="fas fa-copy"></i></button>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>${rowsHTML}</tbody>
+                        <tfoot style="background:#315e9a; color:white; font-weight:bold;">
+                            <tr>
+                                <td style="padding: 5px 10px;">Total general</td>
+                                <td style="padding: 5px 10px; text-align:center;">${totalTicketsMesFiltro}</td>
+                                <td style="padding: 5px 10px; text-align:center;">100.00%</td>
+                            </tr>
+                        </tfoot>
+                    </table>
                 </div>
-                <div id="mda-atencion-body">
-                    <div style="padding: 20px; background: #fff; display: flex; gap: 20px; flex-wrap: wrap;">
-                        <div class="card-child" style="flex: 1; max-width: 480px;">
-                            <table style="width: 100%; border-collapse: collapse; font-family: Calibri; border: 1px solid #c0c0c0;">
-                                <thead style="background:#315e9a; color:white;"><tr><th style="padding: 5px 10px; text-align: left;">ESTADOS</th><th style="padding: 5px 10px; text-align:center;">FOLIOS <button onclick="copiarColumnaFoliosMDA()" class="btn-copy-small">Copiar</button></th><th style="padding: 5px 10px; text-align:center;">%</th></tr></thead>
-                                <tbody>${rowsHTML}</tbody>
-                                <tfoot style="background:#315e9a; color:white; font-weight:bold;"><tr><td style="padding: 5px 10px;">Total general</td><td style="padding: 5px 10px; text-align:center;">${totalTicketsMesFiltro}</td><td style="padding: 5px 10px; text-align:center;">100.00%</td></tr></tfoot>
-                            </table>
-                        </div>
-                        ${tablaAnuladosHTML}
-                    </div>
+                ${tablaAnuladosHTML}
+            </div>
+        </div>
+    </div>
+
+    ${typeof bloqueAcumuladosHP !== 'undefined' ? bloqueAcumuladosHP : ''}
+
+    <div class="card" style="border: 1px solid #ddd; padding: 0; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+        <div class="pjud-header-toggle" onclick="toggleSection('mda-diario-body', 'icon-mda-diario')" style="background: #f8f9fa; border-top: 4px solid #28a745; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+            <h4 style="color: #2e7d32; margin: 0; font-family: Segoe UI; font-weight: bold;"><i class="fas fa-calendar-alt"></i> Ingreso Diario Completo</h4>
+            <i id="icon-mda-diario" class="fas fa-chevron-up rotate-icon"></i>
+        </div>
+        <div id="mda-diario-body">
+            <div style="padding: 20px; background: #fff;">
+                <table style="width: 100%; max-width: 650px; border-collapse: collapse; font-family: Calibri; border: 1px solid #c0c0c0;">
+                    <thead>
+                        <tr style="background-color: #2e7d32; color: white; font-size: 13px;">
+                            <th style="padding: 4px 8px; text-align: left;">Fecha <button onclick="copiarTextoDirecto('${colFechas.join('\\n')}')" class="btn-copy-small"><i class="fas fa-copy"></i></button></th>
+                            <th style="padding: 4px 8px; text-align:center;">Tickets MDA <button onclick="copiarTextoDirecto('${colMDA.join('\\n')}')" class="btn-copy-small"><i class="fas fa-copy"></i></button></th>
+                            <th style="padding: 4px 8px; text-align:center;">Residencias <button onclick="copiarTextoDirecto('${colResi.join('\\n')}')" class="btn-copy-small"><i class="fas fa-copy"></i></button></th>
+                            <th style="padding: 4px 8px; text-align:center;">Total Día <button onclick="copiarTextoDirecto('${colTotal.join('\\n')}')" class="btn-copy-small"><i class="fas fa-copy"></i></button></th>
+                        </tr>
+                    </thead>
+                    <tbody>${dailyRowsHTML}</tbody>
+                    <tfoot style="background-color: #e8f5e9; font-weight: bold; font-size: 13px; border-top: 2px solid #2e7d32;">
+                        <tr>
+                            <td style="padding: 4px 8px;">TOTALES</td>
+                            <td style="padding: 4px 8px; text-align:center; color:#014f8b;">${colMDA.reduce((a, b) => a + b, 0)}</td>
+                            <td style="padding: 4px 8px; text-align:center; color:#2e7d32;">${colResi.reduce((a, b) => a + b, 0)}</td>
+                            <td style="padding: 4px 8px; text-align:center;">${totalTicketsMesFiltro}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card" style="border: 1px solid #ddd; padding: 0; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+        <div class="pjud-header-toggle" onclick="toggleSection('mda-evolucion-body', 'icon-mda-evolucion')" style="background: #f8f9fa; border-top: 4px solid #28a745; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+            <h4 style="color: #2e7d32; margin: 0; font-family: Segoe UI; font-weight: bold;"><i class="fas fa-chart-line"></i> Evolución de Ingreso Diario</h4>
+            <i id="icon-mda-evolucion" class="fas fa-chevron-up rotate-icon"></i>
+        </div>
+        <div id="mda-evolucion-body">
+            <div style="padding: 20px; background: #fff;">
+                <div style="width: 100%; height: 380px;">
+                    <canvas id="canvasGraficoEvolucion"></canvas>
                 </div>
             </div>
+        </div>
+    </div>
 
-            ${tablaResidenciasHTML}
-            
-            ${tablaFallasHTML}
+    ${tablaResidenciasHTML}
 
-            <div class="card" style="border: 1px solid #ddd; padding: 0; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                <div class="pjud-header-toggle" onclick="toggleSection('mda-evolucion-body', 'icon-mda-evolucion')" style="background: #f8f9fa; border-top: 4px solid #28a745; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
-                    <h4 style="color: #2e7d32; margin: 0; font-family: Segoe UI; font-weight: bold;"><i class="fas fa-chart-line"></i> Evolución de Ingreso Diario</h4>
-                    <i id="icon-mda-evolucion" class="fas fa-chevron-up rotate-icon"></i>
-                </div>
-                <div id="mda-evolucion-body">
-                    <div style="padding: 20px; background: #fff;">
-                        <div style="width: 100%; height: 380px;">
-                            <canvas id="canvasGraficoEvolucion"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    ${typeof bloqueCanalAtencion !== 'undefined' ? bloqueCanalAtencion : ''}
 
-            <div class="card" style="border: 1px solid #ddd; padding: 0; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                <div class="pjud-header-toggle" onclick="toggleSection('mda-diario-body', 'icon-mda-diario')" style="background: #f8f9fa; border-top: 4px solid #28a745; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
-                    <h4 style="color: #2e7d32; margin: 0; font-family: Segoe UI; font-weight: bold;"><i class="fas fa-calendar-alt"></i> Ingreso Diario Completo</h4>
-                    <i id="icon-mda-diario" class="fas fa-chevron-up rotate-icon"></i>
-                </div>
-                <div id="mda-diario-body">
-                    <div style="padding: 20px; background: #fff;">
-                        <table style="width: 100%; max-width: 650px; border-collapse: collapse; font-family: Calibri; border: 1px solid #c0c0c0;">
-                            <thead>
-                                <tr style="background-color: #2e7d32; color: white; font-size: 13px;">
-                                    <th style="padding: 4px 8px; text-align: left;">Fecha <button onclick="copiarTextoDirecto('${colFechas.join('\\n')}')" class="btn-copy-small"><i class="fas fa-copy"></i></button></th>
-                                    <th style="padding: 4px 8px; text-align:center;">Tickets MDA <button onclick="copiarTextoDirecto('${colMDA.join('\\n')}')" class="btn-copy-small"><i class="fas fa-copy"></i></button></th>
-                                    <th style="padding: 4px 8px; text-align:center;">Residencias <button onclick="copiarTextoDirecto('${colResi.join('\\n')}')" class="btn-copy-small"><i class="fas fa-copy"></i></button></th>
-                                    <th style="padding: 4px 8px; text-align:center;">Total Día <button onclick="copiarTextoDirecto('${colTotal.join('\\n')}')" class="btn-copy-small"><i class="fas fa-copy"></i></button></th>
-                                </tr>
-                            </thead>
-                            <tbody>${dailyRowsHTML}</tbody>
-                            <tfoot style="background-color: #e8f5e9; font-weight: bold; font-size: 13px; border-top: 2px solid #2e7d32;">
-                                <tr>
-                                    <td style="padding: 4px 8px;">TOTALES</td>
-                                    <td style="padding: 4px 8px; text-align:center; color:#014f8b;">${colMDA.reduce((a, b) => a + b, 0)}</td>
-                                    <td style="padding: 4px 8px; text-align:center; color:#2e7d32;">${colResi.reduce((a, b) => a + b, 0)}</td>
-                                    <td style="padding: 4px 8px; text-align:center;">${totalTicketsMesFiltro}</td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        `;
+    <div id="mda-agentes-container"></div>
+
+    ${typeof bloqueFallasEquipos !== 'undefined' ? bloqueFallasEquipos : ''}
+
+    ${tablaFallasHTML}
+
+    <div id="conclusiones-container"></div>
+`;
 
         const drawNumbersPlugin = {
             id: 'drawNumbers',
@@ -2609,29 +2636,43 @@ function copiarArray(arrayTickets) {
 
 // Función específica para copiar solo la columna de números (Folios) de la tabla principal
 function copiarColumnaFoliosMDA() {
-    const tabla = document.getElementById('tabla-mda-atencion');
-    if (!tabla) return showToast("⚠️ No hay tabla generada.");
+    const tabla = document.querySelector("#mda-atencion-body table");
+    if (!tabla) return showToast("⚠️ No se encontró la tabla de Atención MDA");
 
-    let folios = [];
-    const filasBody = tabla.querySelectorAll('tbody tr');
-    const filaFoot = tabla.querySelector('tfoot tr');
+    const filas = tabla.querySelectorAll("tbody tr");
+    let texto = "";
     
-    filasBody.forEach(fila => {
-        const celdaFolio = fila.children[1]; 
-        if (celdaFolio) folios.push(celdaFolio.innerText.trim());
+    filas.forEach(f => {
+        if(f.cells[1]) texto += f.cells[1].innerText.trim() + "\n";
     });
-
-    if (filaFoot) {
-        const celdaTotal = filaFoot.children[1];
-        if (celdaTotal) folios.push(celdaTotal.innerText.trim());
-    }
-
-    if (folios.length === 0) return showToast("⚠️ No hay datos para copiar.");
     
-    const textoCopiar = folios.join('\n');
-    copiarAlPortapapeles(textoCopiar, `✅ ${folios.length} valores copiados`);
+    const total = tabla.querySelector("tfoot tr td:nth-child(2)");
+    if (total) texto += total.innerText.trim();
+
+    copiarTextoDirecto(texto);
+    showToast("✅ Folios MDA copiados");
 }
 
+// Función para copiar PORCENTAJES de la primera tabla
+function copiarColumnaPorcentajesMDA() {
+    const tabla = document.querySelector("#mda-atencion-body table");
+    if (!tabla) return showToast("⚠️ No se encontró la tabla");
+
+    const filas = tabla.querySelectorAll("tbody tr");
+    let texto = "";
+    
+    filas.forEach(f => {
+        if(f.cells[2]) {
+            // Reemplaza punto por coma para Excel Chile
+            let valor = f.cells[2].innerText.trim().replace('.', ',');
+            texto += valor + "\n";
+        }
+    });
+    
+    texto += "100,00%";
+    copiarTextoDirecto(texto);
+    showToast("✅ Porcentajes MDA copiados");
+}
 // Función para copiar la columna de Folios de Residencias
 function copiarColumnaFoliosResidencias() {
     const tabla = document.getElementById('tabla-mda-residencias');
