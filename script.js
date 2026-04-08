@@ -123,7 +123,7 @@ const CORREOS_JURISDICCION = {
     "GENERAL": "soporte.central@fcom.cl"
 };
 
-const CORREOS_FIJOS = "c.zapata@fcom.cl; a.vacca@fcom.cl; s.guzman@fcom.cl; dvillarroels@pjud.cl; j.marrufo@fcom.cl";
+const CORREOS_FIJOS = "c.zapata@fcom.cl; a.vacca@fcom.cl; s.guzman@fcom.cl; dvillarroels@pjud.cl; j.marrufo@fcom.cl;s.valbuena@fcom.cl"
 
 // --- 3. LÓGICA DE ACCESO ---
 function checkPin() {
