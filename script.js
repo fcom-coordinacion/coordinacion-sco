@@ -9,39 +9,55 @@ let DATOS_NUEVO_MES_HISTORICO = null;
 let mapaFechasLab = {}; // Variable global
 window.mapaFechasLab = {}; // Refuerzo para alcance global
 
-async function cargarDatosLaboratorio() {
+function cargarDatosLaboratorio() {
     const url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRF7xX_Lf5Xjg6dYfV9y5e6arcmSPOVKmz6DGZAbQw8laxYRsC7V2FiifeoYpoiNd6S-h81aTvNwjq/pub?gid=337853765&output=csv";
     
-    try {
-        const response = await fetch(url);
-        const csvText = await response.text();
-        
-        // Dividir por cualquier tipo de salto de línea
-        const filas = csvText.split(/\r?\n/);
-        
-        window.mapaFechasLab = {}; 
+    // Agregamos un parámetro de tiempo para evitar que el navegador use una copia vieja (caché)
+    const urlConCache = url + "&cache=" + new Date().getTime();
 
-        filas.forEach(fila => {
-            // Detectar si el CSV usa coma o punto y coma
-            const columnas = fila.includes(';') ? fila.split(';') : fila.split(',');
-            
-            if (columnas.length >= 2) {
-                // Limpiar comillas, espacios y caracteres no imprimibles
-                const serie = columnas[0].replace(/["\r]/g, "").trim().toUpperCase();
-                const fecha = columnas[1].replace(/["\r]/g, "").trim();
-                
-                if (serie && serie !== "SERIE") {
-                    window.mapaFechasLab[serie] = fecha;
+    fetch(urlConCache, { mode: 'cors' }) // Forzamos modo CORS
+        .then(response => response.text())
+        .then(csvText => {
+            const filas = csvText.split(/\r?\n/);
+            window.mapaFechasLab = {}; 
+
+            filas.forEach(fila => {
+                const columnas = fila.includes(';') ? fila.split(';') : fila.split(',');
+                if (columnas.length >= 2) {
+                    const serie = columnas[0].replace(/["\r]/g, "").trim().toUpperCase();
+                    const fecha = columnas[1].replace(/["\r]/g, "").trim();
+                    if (serie && serie !== "SERIE") {
+                        window.mapaFechasLab[serie] = fecha;
+                    }
                 }
-            }
+            });
+            console.log("✅ Datos vinculados desde GitHub. Total series:", Object.keys(window.mapaFechasLab).length);
+        })
+        .catch(err => {
+            console.error("❌ Error persistente:", err);
+            // Si el fetch falla, intentamos el método alternativo de Proxy como último recurso
+            cargarDatosViaProxy(url);
         });
-        console.log("✅ Sincronización con GitHub Pages exitosa. Datos:", window.mapaFechasLab);
-    } catch (err) {
-        console.error("❌ Error de conexión desde GitHub:", err);
-    }
 }
 
-// Ejecutar al cargar el script
+function cargarDatosViaProxy(urlOriginal) {
+    const urlProxy = "https://api.allorigins.win/get?url=" + encodeURIComponent(urlOriginal);
+    fetch(urlProxy)
+        .then(res => res.json())
+        .then(data => {
+            const filas = data.contents.split(/\r?\n/);
+            filas.forEach(fila => {
+                const cols = fila.split(',');
+                if (cols.length >= 2) {
+                    const s = cols[0].replace(/["\r]/g, "").trim().toUpperCase();
+                    if (s) window.mapaFechasLab[s] = cols[1].replace(/["\r]/g, "").trim();
+                }
+            });
+            console.log("✅ Datos cargados vía Proxy de respaldo.");
+        });
+}
+
+// Ejecutar
 cargarDatosLaboratorio();
 
 
