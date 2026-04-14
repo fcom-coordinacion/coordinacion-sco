@@ -15,26 +15,33 @@ async function cargarDatosLaboratorio() {
     try {
         const response = await fetch(url);
         const csvText = await response.text();
+        
+        // Dividir por cualquier tipo de salto de línea
         const filas = csvText.split(/\r?\n/);
         
         window.mapaFechasLab = {}; 
+
         filas.forEach(fila => {
+            // Detectar si el CSV usa coma o punto y coma
             const columnas = fila.includes(';') ? fila.split(';') : fila.split(',');
+            
             if (columnas.length >= 2) {
-                const serie = columnas[0].replace(/"/g, "").trim().toUpperCase();
-                const fecha = columnas[1].replace(/"/g, "").trim();
+                // Limpiar comillas, espacios y caracteres no imprimibles
+                const serie = columnas[0].replace(/["\r]/g, "").trim().toUpperCase();
+                const fecha = columnas[1].replace(/["\r]/g, "").trim();
+                
                 if (serie && serie !== "SERIE") {
                     window.mapaFechasLab[serie] = fecha;
                 }
             }
         });
-        console.log("✅ Datos sincronizados correctamente.");
+        console.log("✅ Sincronización con GitHub Pages exitosa. Datos:", window.mapaFechasLab);
     } catch (err) {
-        console.error("❌ Error de conexión:", err);
+        console.error("❌ Error de conexión desde GitHub:", err);
     }
 }
 
-// Ejecutar al inicio
+// Ejecutar al cargar el script
 cargarDatosLaboratorio();
 
 
