@@ -1754,8 +1754,9 @@ async function generarReporteGuiasPendientes() {
             : `<span style="color:#666; font-size:10px;">PENDIENTE RETIRO</span>`;
 
         // CRUCE DINÁMICO
-        const serieLimpia = (t.serie || "").toString().trim().toUpperCase();
-        const fechaLab = labData[serieLimpia] || "-";
+       // Dentro del forEach de generarReporteGuiasPendientes:
+const serieTicket = (t.serie || "").toString().trim().toUpperCase();
+const fechaLab = (window.mapaFechasLab && window.mapaFechasLab[serieTicket]) ? window.mapaFechasLab[serieTicket] : "-";
 
         filasHTML += `
             <tr style="border-bottom: 1px solid #ddd; ${estaEnRecuperacion ? 'background-color: #fffdf5;' : ''}">
