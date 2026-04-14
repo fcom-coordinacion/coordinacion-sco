@@ -9,36 +9,47 @@ let DATOS_NUEVO_MES_HISTORICO = null;
 let mapaFechasLab = {}; // Variable global
 window.mapaFechasLab = {}; // Refuerzo para alcance global
 
-function cargarDatosLaboratorio() {
-    const url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRF7xX_Lf5Xjg6dYfV9y5e6arcmSPOVKmz6DGZAbQw8laxYRsC7V2FiifeoYpoiNd6S-h81aTvNwjq/pub?gid=337853765&output=csv";
+async function cargarDatosLaboratorio() {
+    // La URL exacta de tu imagen
+    const url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRF7xX_Lf5Xjg6dYfV9y5e6arcmSPOVKmz6DGZAbQw8laxYRsC7V2FiifeoYpoiNd6S-h81aTvNwjq/pub?gid=337853765&single=true&output=csv";
     
-    // Agregamos un parámetro de tiempo para evitar que el navegador use una copia vieja (caché)
-    const urlConCache = url + "&cache=" + new Date().getTime();
+    try {
+        const response = await fetch(url);
+        const csvText = await response.text();
+        
+        // Si por alguna razón devuelve HTML (error), no procesamos
+        if (csvText.includes("<!DOCTYPE")) {
+            console.error("❌ Google devolvió un error. Revisa la publicación.");
+            return;
+        }
 
-    fetch(urlConCache, { mode: 'cors' }) // Forzamos modo CORS
-        .then(response => response.text())
-        .then(csvText => {
-            const filas = csvText.split(/\r?\n/);
-            window.mapaFechasLab = {}; 
+        const filas = csvText.split(/\r?\n/);
+        window.mapaFechasLab = {}; // Reiniciamos el mapa global
 
-            filas.forEach(fila => {
-                const columnas = fila.includes(';') ? fila.split(';') : fila.split(',');
-                if (columnas.length >= 2) {
-                    const serie = columnas[0].replace(/["\r]/g, "").trim().toUpperCase();
-                    const fecha = columnas[1].replace(/["\r]/g, "").trim();
-                    if (serie && serie !== "SERIE") {
-                        window.mapaFechasLab[serie] = fecha;
-                    }
+        filas.forEach(fila => {
+            // Google Sheets CSV usa comas (,)
+            const columnas = fila.split(',');
+            
+            if (columnas.length >= 2) {
+                // Limpiamos comillas y espacios de la Serie y la Fecha
+                const serie = columnas[0].replace(/"/g, "").trim().toUpperCase();
+                const fecha = columnas[1].replace(/"/g, "").trim();
+                
+                if (serie && serie !== "SERIE") {
+                    window.mapaFechasLab[serie] = fecha;
                 }
-            });
-            console.log("✅ Datos vinculados desde GitHub. Total series:", Object.keys(window.mapaFechasLab).length);
-        })
-        .catch(err => {
-            console.error("❌ Error persistente:", err);
-            // Si el fetch falla, intentamos el método alternativo de Proxy como último recurso
-            cargarDatosViaProxy(url);
+            }
         });
+
+        console.log("✅ Sincronización exitosa:", Object.keys(window.mapaFechasLab).length, "series cargadas.");
+        
+    } catch (err) {
+        console.error("❌ Error de conexión:", err);
+    }
 }
+
+// Ejecutar al cargar la página
+cargarDatosLaboratorio();
 
 function cargarDatosViaProxy(urlOriginal) {
     const urlProxy = "https://api.allorigins.win/get?url=" + encodeURIComponent(urlOriginal);
