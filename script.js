@@ -36,7 +36,10 @@ async function cargarDatosLaboratorio() {
                 const fecha = columnas[1].replace(/"/g, "").trim();
                 
                 if (serie && serie !== "SERIE") {
-                    window.mapaFechasLab[serie] = fecha;
+                   // ... dentro de filas.forEach ...
+const serie = columnas[0].replace(/["\r]/g, "").trim().toUpperCase(); // Forzamos Mayúsculas
+const fecha = columnas[1].replace(/["\r]/g, "").trim();
+window.mapaFechasLab[serie] = fecha;
                 }
             }
         });
@@ -1782,8 +1785,9 @@ async function generarReporteGuiasPendientes() {
 
         // CRUCE DINÁMICO
        // Dentro del forEach de generarReporteGuiasPendientes:
-const serieTicket = (t.serie || "").toString().trim().toUpperCase();
-const fechaLab = (window.mapaFechasLab && window.mapaFechasLab[serieTicket]) ? window.mapaFechasLab[serieTicket] : "-";
+// Dentro del forEach donde generas las filas de la tabla:
+const serieTicket = (t.serie || "").toString().trim().toUpperCase(); // Forzamos Mayúsculas
+const fechaLab = window.mapaFechasLab[serieTicket] || "-";
 
         filasHTML += `
             <tr style="border-bottom: 1px solid #ddd; ${estaEnRecuperacion ? 'background-color: #fffdf5;' : ''}">
