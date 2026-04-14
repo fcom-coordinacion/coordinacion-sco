@@ -10,70 +10,64 @@ let mapaFechasLab = {}; // Variable global
 window.mapaFechasLab = {}; // Refuerzo para alcance global
 
 async function cargarDatosLaboratorio() {
-    // La URL exacta de tu imagen
-    const url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRF7xX_Lf5Xjg6dYfV9y5e6arcmSPOVKmz6DGZAbQw8laxYRsC7V2FiifeoYpoiNd6S-h81aTvNwjq/pub?gid=337853765&single=true&output=csv";
+    const urlOriginal = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRF7xX_Lf5Xjg6dYfV9y5e6arcmSPOVKmz6DGZAbQw8laxYRsC7V2FiifeoYpoiNd6S-h81aTvNwjq/pub?gid=337853765&single=true&output=csv";
     
+    // Reiniciamos el mapa global antes de empezar
+    window.mapaFechasLab = {};
+
     try {
-        const response = await fetch(url);
+        console.log("Intentando sincronización directa...");
+        const response = await fetch(urlOriginal);
         const csvText = await response.text();
         
-        // Si por alguna razón devuelve HTML (error), no procesamos
         if (csvText.includes("<!DOCTYPE")) {
-            console.error("❌ Google devolvió un error. Revisa la publicación.");
-            return;
+            throw new Error("Respuesta HTML detectada (Posible error de Google)");
         }
 
-        const filas = csvText.split(/\r?\n/);
-        window.mapaFechasLab = {}; // Reiniciamos el mapa global
+        procesarContenidoCSV(csvText);
+        console.log("✅ Sincronización directa exitosa:", Object.keys(window.mapaFechasLab).length, "series.");
 
-        filas.forEach(fila => {
-            // Google Sheets CSV usa comas (,)
-            const columnas = fila.split(',');
-            
-            if (columnas.length >= 2) {
-                // Limpiamos comillas y espacios de la Serie y la Fecha
-                const serie = columnas[0].replace(/"/g, "").trim().toUpperCase();
-                const fecha = columnas[1].replace(/"/g, "").trim();
-                
-                if (serie && serie !== "SERIE") {
-                   // ... dentro de filas.forEach ...
-const serie = columnas[0].replace(/["\r]/g, "").trim().toUpperCase(); // Forzamos Mayúsculas
-const fecha = columnas[1].replace(/["\r]/g, "").trim();
-window.mapaFechasLab[serie] = fecha;
-                }
-            }
-        });
-
-        console.log("✅ Sincronización exitosa:", Object.keys(window.mapaFechasLab).length, "series cargadas.");
-        
     } catch (err) {
-        console.error("❌ Error de conexión:", err);
+        console.warn("⚠️ Falló conexión directa, intentando vía Proxy de respaldo...");
+        cargarDatosViaProxy(urlOriginal);
     }
 }
 
-// Ejecutar al cargar la página
-cargarDatosLaboratorio();
-
 function cargarDatosViaProxy(urlOriginal) {
     const urlProxy = "https://api.allorigins.win/get?url=" + encodeURIComponent(urlOriginal);
+    
     fetch(urlProxy)
-        .then(res => res.json())
+        .then(res => {
+            if (!res.ok) throw new Error("Error en el Proxy");
+            return res.json();
+        })
         .then(data => {
-            const filas = data.contents.split(/\r?\n/);
-            filas.forEach(fila => {
-                const cols = fila.split(',');
-                if (cols.length >= 2) {
-                    const s = cols[0].replace(/["\r]/g, "").trim().toUpperCase();
-                    if (s) window.mapaFechasLab[s] = cols[1].replace(/["\r]/g, "").trim();
-                }
-            });
-            console.log("✅ Datos cargados vía Proxy de respaldo.");
+            procesarContenidoCSV(data.contents);
+            console.log("✅ Sincronización vía Proxy exitosa:", Object.keys(window.mapaFechasLab).length, "series.");
+        })
+        .catch(err => {
+            console.error("❌ Error total: No se pudo acceder a los datos.", err);
         });
 }
 
-// Ejecutar
-cargarDatosLaboratorio();
+// Función auxiliar para no repetir la lógica de limpieza
+function procesarContenidoCSV(texto) {
+    const filas = texto.split(/\r?\n/);
+    filas.forEach(fila => {
+        const columnas = fila.includes(';') ? fila.split(';') : fila.split(',');
+        if (columnas.length >= 2) {
+            const serie = columnas[0].replace(/["\r]/g, "").trim().toUpperCase();
+            const fecha = columnas[1].replace(/["\r]/g, "").trim();
+            
+            if (serie && serie !== "SERIE") {
+                window.mapaFechasLab[serie] = fecha;
+            }
+        }
+    });
+}
 
+// Ejecutar una sola vez al cargar
+cargarDatosLaboratorio();
 
 // === AGREGA ESTO AQUÍ ===
 let PROYECTO_ACTIVO = "PJUD5";
