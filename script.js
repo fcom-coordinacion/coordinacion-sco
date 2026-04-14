@@ -5,6 +5,37 @@ let allTicketsList = [];
 let DATOS_HISTORICOS_MESES = []; // Los meses que vienen de Sheets (Ene, Feb...)
 let DATOS_MANUAL_ACTUAL = null;  // Los datos que subes por CSV (Marzo...)
 let DATOS_NUEVO_MES_HISTORICO = null;
+// Variable global para almacenar el cruce de series/fechas
+let mapaFechasLab = {}; // Variable global
+window.mapaFechasLab = {}; // Refuerzo para alcance global
+
+async function cargarDatosLaboratorio() {
+    const url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRF7xX_Lf5Xjg6dYfV9y5e6arcmSPOVKmz6DGZAbQw8laxYRsC7V2FiifeoYpoiNd6S-h81aTvNwjq/pub?gid=337853765&output=csv";
+    
+    try {
+        const response = await fetch(url);
+        const csvText = await response.text();
+        const filas = csvText.split(/\r?\n/);
+        
+        window.mapaFechasLab = {}; 
+        filas.forEach(fila => {
+            const columnas = fila.includes(';') ? fila.split(';') : fila.split(',');
+            if (columnas.length >= 2) {
+                const serie = columnas[0].replace(/"/g, "").trim().toUpperCase();
+                const fecha = columnas[1].replace(/"/g, "").trim();
+                if (serie && serie !== "SERIE") {
+                    window.mapaFechasLab[serie] = fecha;
+                }
+            }
+        });
+        console.log("✅ Datos sincronizados correctamente.");
+    } catch (err) {
+        console.error("❌ Error de conexión:", err);
+    }
+}
+
+// Ejecutar al inicio
+cargarDatosLaboratorio();
 
 
 // === AGREGA ESTO AQUÍ ===
@@ -1662,7 +1693,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // --- REPORTE: GUÍAS PENDIENTES ---
-function generarReporteGuiasPendientes() {
+async function generarReporteGuiasPendientes() {
     const container = document.getElementById('guias-pendientes-result');
     const grupoSeleccionado = document.getElementById('filtro-grupo-guias').value;
 
@@ -1671,21 +1702,24 @@ function generarReporteGuiasPendientes() {
         return;
     }
 
+    // ELIMINADO: await cargarDatosDesdeSheets() ya no es necesario aquí
+    // porque los datos se cargan al abrir la página.
+
     const ticketsEnRecuperacion = [
         "7493206","7494261","7496812","7496968","7524642","7494261","7496969","7539950","7544696","7560826","7581956","7598371","7614098","7605150","7637221","7662905","7635910","7690441","7692876","7492515","7494920","7495317","7495546","7495776","7802224","7842786","7841094"
     ]; 
 
     const ticketsFiltrados = allTicketsList.filter(t => {
-        const backupNorm = t.backup.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
+        const backupNorm = (t.backup || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
         if (backupNorm !== "SI") return false;
 
-        const guiaNorm = t.guiaRetiro.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
+        const guiaNorm = (t.guiaRetiro || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
         if (guiaNorm !== "NO" && guiaNorm !== "") return false;
 
         const tipoUpper = t.tipo ? t.tipo.toUpperCase() : "";
         if (tipoUpper.includes("MOUSE") || tipoUpper.includes("TECLADO")) return false;
 
-        const grupoUpper = t.grupo.toUpperCase();
+        const grupoUpper = (t.grupo || "").toUpperCase();
         if (grupoSeleccionado !== "TODOS") {
             if (!grupoUpper.includes(grupoSeleccionado)) return false;
         } else {
@@ -1702,11 +1736,19 @@ function generarReporteGuiasPendientes() {
     }
 
     let filasHTML = "";
+    
+    // Usamos una referencia local segura de los datos del lab
+    const labData = window.mapaFechasLab || mapaFechasLab || {};
+
     ticketsFiltrados.forEach(t => {
         const estaEnRecuperacion = ticketsEnRecuperacion.includes(t.num.trim());
         const badgeEstado = estaEnRecuperacion 
             ? `<span style="background:#fff3cd; color:#856404; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:10px; border:1px solid #ffeeba;">CON USUARIO - REVISAR</span>`
             : `<span style="color:#666; font-size:10px;">PENDIENTE RETIRO</span>`;
+
+        // CRUCE DINÁMICO
+        const serieLimpia = (t.serie || "").toString().trim().toUpperCase();
+        const fechaLab = labData[serieLimpia] || "-";
 
         filasHTML += `
             <tr style="border-bottom: 1px solid #ddd; ${estaEnRecuperacion ? 'background-color: #fffdf5;' : ''}">
@@ -1717,7 +1759,7 @@ function generarReporteGuiasPendientes() {
                 <td style="padding: 8px; border: 1px solid #ccc;">${t.tipo}</td>
                 <td style="padding: 8px; border: 1px solid #ccc;">${t.serie}</td>
                 <td style="padding: 8px; border: 1px solid #ccc;">${t.despachosRaw}</td>
-                <td style="padding: 8px; border: 1px solid #ccc; font-weight:bold; color:#014f8b;">${t.ip || "-"}</td>
+                <td style="padding: 8px; border: 1px solid #ccc; font-weight:bold; color:#014f8b; text-align:center;">${fechaLab}</td>
             </tr>
         `;
     });
@@ -1736,7 +1778,7 @@ function generarReporteGuiasPendientes() {
                     <th>Tipo</th>
                     <th>Serie</th>
                     <th>Despachos</th>
-                    <th style="background-color: #014f8b; color: white;">Dirección IP</th>
+                    <th style="background-color: #014f8b; color: white;">FECHA LAB</th>
                 </tr>
             </thead>
             <tbody>${filasHTML}</tbody>
@@ -1744,7 +1786,7 @@ function generarReporteGuiasPendientes() {
     `;
 
     container.classList.remove('hidden');
-    showToast(`⚠️ Se encontraron ${ticketsFiltrados.length} guías pendientes.`);
+    showToast(`⚠️ Cruce de datos finalizado.`);
 }
 
 function copiarTablaGuiasPendientes() {
