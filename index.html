@@ -129,17 +129,61 @@
                 </div>
             </div>
             
-            <div id="mod-registros" class="module hidden">
-                <h1>Registros y Planillas Online</h1>
-                <div class="tabs-container">
-                    <button class="tab-btn active" onclick="switchSheetTab('sheet-1', this)"><i class="fas fa-clipboard-list"></i> Registro Principal</button>
-                </div>
-                <div id="sheet-1" class="sheet-content active-content">
-                    <div class="card" style="padding: 0; overflow: hidden; height: 80vh; border: 1px solid #ccc;">
-                        <iframe src="https://docs.google.com/spreadsheets/d/1kFRvMmyHom4APfhVqmdvHg_wSkKPH8Y0eJ5Z6HnVeq0/edit?rm=minimal" style="width: 100%; height: 100%; border: none;" allow="autoplay"></iframe>
-                    </div>
-                </div>
+           <div id="mod-registros" class="module hidden">
+    <h1>Registros y Planillas Online</h1>
+
+    <div class="tabs-container">
+        <button class="tab-btn active" onclick="switchSheetTab('sheet-1', this)">
+            <i class="fas fa-clipboard-list"></i> Registro Principal
+        </button>
+        <button class="tab-btn" onclick="switchSheetTab('sheet-matriz', this)">
+            <i class="fas fa-truck-loading"></i> Matriz Tránsito
+        </button>
+    </div>
+
+    <div id="sheet-1" class="sheet-content active-content">
+        <div class="card" style="padding: 0; overflow: hidden; height: 80vh; border: 1px solid #ccc;">
+            <iframe src="https://docs.google.com/spreadsheets/d/1kFRvMmyHom4APfhVqmdvHg_wSkKPH8Y0eJ5Z6HnVeq0/edit?rm=minimal" 
+                    style="width: 100%; height: 100%; border: none;" allow="autoplay"></iframe>
+        </div>
+    </div>
+
+    <div id="sheet-matriz" class="sheet-content hidden-content">
+    <div class="card" style="padding: 20px; overflow-y: auto; height: 80vh; border: 1px solid #ccc; background: white;">
+        <h2 style="color: #014f8b; margin-bottom: 5px;">
+            <i class="fas fa-map-marked-alt"></i> Matriz de Tránsito y Cobertura (Correos De Chile)
+        </h2>
+
+        <p style="color: #666; font-size: 0.95rem; margin-bottom: 20px; line-height: 1.5; border-left: 4px solid #014f8b; padding-left: 15px; background: #f0f7ff; padding-top: 10px; padding-bottom: 10px;">
+            Matriz de tránsito de courrier (Correos de Chile) en días. 
+            <br>
+            <strong style="color: #d32f2f;">Importante:</strong> Las distribuciones a <strong>sucursal</strong> deben ser evaluadas para retiros con técnicos de terreno, no a nombres de usuarios.
+        </p>
+        
+        <div style="margin-bottom: 20px; display: flex; gap: 10px;">
+            <div style="position: relative; flex: 1;">
+                <i class="fas fa-search" style="position: absolute; left: 12px; top: 14px; color: #999;"></i>
+                <input type="text" id="inputBusquedaMatriz" onkeyup="renderizarMatriz()" 
+                       placeholder="Buscar comuna (ej: Arica, Coyhaique...)" 
+                       style="width: 100%; padding: 12px 12px 12px 35px; border: 1px solid #014f8b; border-radius: 5px; font-size: 1rem;">
             </div>
+        </div>
+
+        <table style="width: 100%; border-collapse: collapse; font-family: sans-serif; font-size: 13px; border: 1px solid #eee;">
+            <thead>
+                <tr style="background-color: #014f8b; color: white; text-align: left;">
+                    <th style="padding: 12px; border: 1px solid #ddd;">COMUNA</th>
+                    <th style="padding: 12px; border: 1px solid #ddd; text-align: center;">DOMICILIARIA</th>
+                    <th style="padding: 12px; border: 1px solid #ddd; text-align: center;">SUCURSAL</th>
+                    <th style="padding: 12px; border: 1px solid #ddd;">OBSERVACIÓN</th>
+                </tr>
+            </thead>
+            <tbody id="bodyMatriz">
+                </tbody>
+        </table>
+    </div>
+</div>
+</div>
 
             <div id="mod-guias" class="module hidden">
                 <h1>Formatos Para Gestión </h1>
@@ -488,34 +532,40 @@
                     </div>
 
                     
-              
-
-
-
-
-            </div>
-
-            <div id="mod-enlaces" class="module hidden">
-                <h1>Biblioteca de Accesos y Recursos</h1>
-                <div class="tabs-container" style="display: flex; gap: 10px; margin-bottom: 0;">
-                    <button class="tab-btn active" style="border-bottom: 3px solid #014f8b; color: #014f8b; font-weight: bold; padding: 10px 20px; background: white; border: 1px solid #ddd; border-bottom: none; border-radius: 5px 5px 0 0;"><i class="fas fa-list"></i> Listado General</button>
                 </div>
-                <div class="card" style="border-top: 3px solid #014f8b; border-radius: 0 5px 5px 5px; margin-top: -1px;">
-                    <p style="color: #666; margin-bottom: 20px;">Acceso rápido a plataformas externas, documentación y credenciales compartidas.</p>
-                    <div style="overflow-x: auto;">
-                        <table id="tabla-enlaces" style="width: 100%; border-collapse: collapse; font-family: Segoe UI, sans-serif;">
-                            <thead style="background-color: #f8f9fa; color: #444; border-bottom: 2px solid #ddd;">
-                                <tr>
-                                    <th style="padding: 12px; text-align: left; width: 40%;">DESCRIPCIÓN / USO</th>
-                                    <th style="padding: 12px; text-align: center; width: 15%;">ENLACE</th>
-                                    <th style="padding: 12px; text-align: left; width: 45%;">CREDENCIALES / NOTAS</th>
-                                </tr>
-                            </thead>
-                            <tbody id="body-enlaces"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+
+
+
+
+        
+
+            <div id="mod-enlaces" class="module hidden" style="width: 100%; max-width: 100%; box-sizing: border-box;">
+    <h1>Biblioteca de Accesos y Recursos</h1>
+    
+    <div class="tabs-container" style="display: flex; gap: 10px; margin-bottom: 0;">
+        <button class="tab-btn active" style="border-bottom: 3px solid #014f8b; color: #014f8b; font-weight: bold; padding: 10px 20px; background: white; border: 1px solid #ddd; border-bottom: none; border-radius: 5px 5px 0 0;">
+            <i class="fas fa-list"></i> Listado General
+        </button>
+    </div>
+
+    <div class="card" style="border-top: 3px solid #014f8b; border-radius: 0 5px 5px 5px; margin-top: -1px; width: 100%; overflow: hidden; box-sizing: border-box;">
+        <p style="color: #666; margin-bottom: 20px; padding: 0 10px;">Acceso rápido a plataformas externas, documentación y credenciales compartidas.</p>
+        
+        <div style="overflow-x: auto; width: 100%;">
+            <table id="tabla-enlaces" style="width: 100%; min-width: 800px; border-collapse: collapse; font-family: 'Segoe UI', sans-serif; table-layout: fixed;">
+                <thead style="background-color: #f8f9fa; color: #444; border-bottom: 2px solid #ddd;">
+                    <tr>
+                        <th style="padding: 12px; text-align: left; width: 35%;">DESCRIPCIÓN / USO</th>
+                        <th style="padding: 12px; text-align: center; width: 15%;">ENLACE</th>
+                        <th style="padding: 12px; text-align: left; width: 50%;">CREDENCIALES / NOTAS</th>
+                    </tr>
+                </thead>
+                <tbody id="body-enlaces">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 
             <div id="mod-otros" class="module hidden"><h1>Otros Módulos </h1></div>
         </main>
