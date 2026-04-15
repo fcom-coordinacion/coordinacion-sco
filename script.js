@@ -6,51 +6,38 @@ let DATOS_HISTORICOS_MESES = []; // Los meses que vienen de Sheets (Ene, Feb...)
 let DATOS_MANUAL_ACTUAL = null;  // Los datos que subes por CSV (Marzo...)
 let DATOS_NUEVO_MES_HISTORICO = null;
 // Variable global para almacenar el cruce de series/fechas
-let mapaFechasLab = {}; // Variable global
-window.mapaFechasLab = {}; // Refuerzo para alcance global
+// Declaración única y blindada para todo el script
+window.mapaFechasLab = {};
 
 async function cargarDatosLaboratorio() {
     const urlOriginal = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRF7xX_Lf5Xjg6dYfV9y5e6arcmSPOVKmz6DGZAbQw8laxYRsC7V2FiifeoYpoiNd6S-h81aTvNwjq/pub?gid=337853765&single=true&output=csv";
     
-    // Reiniciamos el mapa global antes de empezar
-    window.mapaFechasLab = {};
-
     try {
         console.log("Intentando sincronización directa...");
         const response = await fetch(urlOriginal);
         const csvText = await response.text();
         
-        if (csvText.includes("<!DOCTYPE")) {
-            throw new Error("Respuesta HTML detectada (Posible error de Google)");
-        }
+        if (csvText.includes("<!DOCTYPE")) throw new Error("HTML detectado");
 
         procesarContenidoCSV(csvText);
-        console.log("✅ Sincronización directa exitosa:", Object.keys(window.mapaFechasLab).length, "series.");
-
+        console.log("✅ Sincronización exitosa:", Object.keys(window.mapaFechasLab).length, "series.");
     } catch (err) {
-        console.warn("⚠️ Falló conexión directa, intentando vía Proxy de respaldo...");
+        console.warn("⚠️ Intentando vía Proxy de respaldo...");
         cargarDatosViaProxy(urlOriginal);
     }
 }
 
 function cargarDatosViaProxy(urlOriginal) {
-    const urlProxy = "https://api.allorigins.win/get?url=" + encodeURIComponent(urlOriginal);
-    
+    const urlProxy = `https://api.allorigins.win/get?url=${encodeURIComponent(urlOriginal)}`;
     fetch(urlProxy)
-        .then(res => {
-            if (!res.ok) throw new Error("Error en el Proxy");
-            return res.json();
-        })
+        .then(res => res.json())
         .then(data => {
             procesarContenidoCSV(data.contents);
-            console.log("✅ Sincronización vía Proxy exitosa:", Object.keys(window.mapaFechasLab).length, "series.");
+            console.log("✅ Sincronización Proxy exitosa.");
         })
-        .catch(err => {
-            console.error("❌ Error total: No se pudo acceder a los datos.", err);
-        });
+        .catch(err => console.error("❌ Error total de conexión", err));
 }
 
-// Función auxiliar para no repetir la lógica de limpieza
 function procesarContenidoCSV(texto) {
     const filas = texto.split(/\r?\n/);
     filas.forEach(fila => {
@@ -58,7 +45,6 @@ function procesarContenidoCSV(texto) {
         if (columnas.length >= 2) {
             const serie = columnas[0].replace(/["\r]/g, "").trim().toUpperCase();
             const fecha = columnas[1].replace(/["\r]/g, "").trim();
-            
             if (serie && serie !== "SERIE") {
                 window.mapaFechasLab[serie] = fecha;
             }
@@ -1733,6 +1719,11 @@ async function generarReporteGuiasPendientes() {
         return;
     }
 
+    // Si el mapa está vacío, intentamos cargarlo antes de seguir
+    if (Object.keys(window.mapaFechasLab).length === 0) {
+        await cargarDatosLaboratorio(); 
+    }
+
     // ELIMINADO: await cargarDatosDesdeSheets() ya no es necesario aquí
     // porque los datos se cargan al abrir la página.
 
@@ -1779,9 +1770,9 @@ async function generarReporteGuiasPendientes() {
 
         // CRUCE DINÁMICO
        // Dentro del forEach de generarReporteGuiasPendientes:
-// Dentro del forEach donde generas las filas de la tabla:
-const serieTicket = (t.serie || "").toString().trim().toUpperCase(); // Forzamos Mayúsculas
-const fechaLab = window.mapaFechasLab[serieTicket] || "-";
+const serieTicket = (t.serie || "").toString().trim().toUpperCase();
+// Usamos window para asegurar acceso a la memoria global
+const fechaLab = window.mapaFechasLab[serieTicket] ? window.mapaFechasLab[serieTicket] : "-";
 
         filasHTML += `
             <tr style="border-bottom: 1px solid #ddd; ${estaEnRecuperacion ? 'background-color: #fffdf5;' : ''}">
@@ -2883,10 +2874,18 @@ window.manejarRespuestaSheets = function(response) {
 };
 // ... (Aquí termina tu función manejarRespuestaSheets)
 
-// --- ESTE ES EL DISPARADOR QUE DEBES AGREGAR AL FINAL ---
 document.addEventListener('DOMContentLoaded', () => {
+    // 1. Cargamos la base de datos de Guías (Sincronización con LAB)
+    cargarDatosLaboratorio(); 
+    
+    // 2. Cargamos los datos del Informe MDA
     cargarDatosDesdeSheets();
-    cargarDatosTipos();       // Carga Equipos (Tabla 2 - LA NUEVA)
+    cargarDatosTipos();
+    
+    // 3. Cargamos la tabla de links
+    cargarBibliotecaEnlaces();
+    
+    console.log("🚀 Sistema FCOM Inicializado.");
 });
 
 // 4. Iniciar carga al cargar la web
@@ -3512,4 +3511,3 @@ function generarConclusionesDinamicas(mes, datosMDA, datosResi, totalMes) {
         </div>
     `;
 }
-
