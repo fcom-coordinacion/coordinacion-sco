@@ -139,6 +139,9 @@
         <button class="tab-btn" onclick="switchSheetTab('sheet-matriz', this)">
             <i class="fas fa-truck-loading"></i> Matriz Tránsito
         </button>
+        <button class="tab-btn" onclick="switchSheetTab('sheet-sla', this)">
+            <i class="fas fa-stopwatch"></i> Tiempos (SLA)
+        </button>
     </div>
 
     <div id="sheet-1" class="sheet-content active-content">
@@ -183,6 +186,32 @@
         </table>
     </div>
 </div>
+
+        <div id="sheet-sla" class="sheet-content hidden-content">
+        <div class="card" style="padding: 20px; overflow-y: auto; height: 80vh; border: 1px solid #ccc; background: white;">
+            <h2 style="color: #014f8b; margin-bottom: 5px;">
+                <i class="fas fa-history"></i> Tiempos de Solución (SLA)
+            </h2>
+            <p style="color: #666; font-size: 0.95rem; margin-bottom: 20px; line-height: 1.5; border-left: 4px solid #28a745; padding-left: 15px; background: #f6fff8; padding-top: 10px; padding-bottom: 10px;">
+                Los tiempos de solución de Hardware y Software son contabilizados desde la creación del requerimiento hasta su solución en sistema, y estos solo son detenidos por procesos de <strong>"Planeación en Mauweb"</strong>.
+            </p>
+            <div style="margin-bottom: 20px;">
+                <input type="text" id="inputBusquedaSLA" onkeyup="renderizarSLA()" placeholder="Buscar comuna..." style="width: 100%; padding: 12px 12px 12px 35px; border: 1px solid #28a745; border-radius: 5px; font-size: 1rem;">
+            </div>
+            <table style="width: 100%; border-collapse: collapse; font-family: sans-serif; font-size: 13px; border: 1px solid #eee;">
+                <thead>
+                    <tr style="background-color: #28a745; color: white; text-align: left;">
+                        <th style="padding: 12px; border: 1px solid #ddd;">COMUNA</th>
+                        <th style="padding: 12px; border: 1px solid #ddd; text-align: center;">SLA SOFTWARE</th>
+                        <th style="padding: 12px; border: 1px solid #ddd; text-align: center;">SLA HARDWARE</th>
+                    </tr>
+                </thead>
+                <tbody id="bodySLA"></tbody>
+            </table>
+        </div>
+    </div>
+
+
 </div>
 
             <div id="mod-guias" class="module hidden">
