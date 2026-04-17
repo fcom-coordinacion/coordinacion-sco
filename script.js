@@ -233,41 +233,59 @@ rows.forEach((row) => {
 
     // 4. Extraemos datos básicos necesarios
     const minutosConsumidos = parseInt(cleanCol(26)) || 0; // Columna AA
-    const horasTranscurridas = (minutosConsumidos / 60).toFixed(1);
+    // --- NUEVO CÁLCULO DE TIEMPO HUMANO (Horas y Minutos) ---
+const minutosTotales = parseInt(cleanCol(26)) || 0; 
+const horasEnteras = Math.floor(minutosTotales / 60);
+const minutosRestantes = minutosTotales % 60;
+
+// Creamos un texto amigable: "1h 20m"
+const tiempoFormateado = `${horasEnteras}h ${minutosRestantes}m`;
+
+// Para los cálculos matemáticos del semáforo seguimos usando el valor decimal interno
+const horasDecimales = minutosTotales / 60;
     const dependenciaTexto = cleanCol(12).toUpperCase();
     const grupoResolutor = cleanCol(3).toUpperCase(); // Columna Grupo
 
-    // --- LÓGICA SEMÁFORO SLA HARDWARE (70%) ---
-    let limiteHorasSLA = 0;
+    // --- LÓGICA SEMÁFORO SLA CON FORMATO HUMANO ---
+let limiteHorasSLA = 0;
 
-    // REGLA NUEVA: Si el grupo es Residentes, el SLA es fijo de 2 horas
-    if (grupoResolutor.includes("RESIDENTES")) {
-        limiteHorasSLA = 2;
+if (grupoResolutor.includes("RESIDENTES")) {
+    limiteHorasSLA = 2;
+} else {
+    const infoComuna = DATA_MATRIZ.find(m => dependenciaTexto.includes(m.comuna.toUpperCase()));
+    limiteHorasSLA = infoComuna ? parseInt(infoComuna.slahardware) : 0;
+}
+
+let slaStatusHTML = "";
+
+if (limiteHorasSLA > 0) {
+    const porcentajeUso = (horasDecimales / limiteHorasSLA);
+
+    if (horasDecimales >= limiteHorasSLA) {
+        // VENCIDO
+        slaStatusHTML = `
+            <div style="color: #d32f2f; font-weight: bold;" title="Límite: ${limiteHorasSLA}h">
+                <i class="fas fa-exclamation-triangle"></i> Fuera de SLA<br>
+                <small>${tiempoFormateado} / ${limiteHorasSLA}h</small>
+            </div>`;
+    } else if (porcentajeUso >= 0.7) {
+        // CRÍTICO
+        slaStatusHTML = `
+            <div style="color: #ef6c00; font-weight: bold;" title="Límite: ${limiteHorasSLA}h">
+                <i class="fas fa-clock"></i> Crítico (70%)<br>
+                <small>${tiempoFormateado} / ${limiteHorasSLA}h</small>
+            </div>`;
     } else {
-        // Si no es residente, buscamos en la matriz por comuna
-        const infoComuna = DATA_MATRIZ.find(m => dependenciaTexto.includes(m.comuna.toUpperCase()));
-        limiteHorasSLA = infoComuna ? parseInt(infoComuna.slahardware) : 0;
+        // EN TIEMPO
+        slaStatusHTML = `
+            <div style="color: #2e7d32;" title="Límite: ${limiteHorasSLA}h">
+                <i class="fas fa-check-circle"></i> En Tiempo<br>
+                <small>${tiempoFormateado} / ${limiteHorasSLA}h</small>
+            </div>`;
     }
-
-    let slaStatusHTML = "";
-
-    if (limiteHorasSLA > 0) {
-        const horasNum = parseFloat(horasTranscurridas);
-        const porcentajeUso = (horasNum / limiteHorasSLA);
-
-        if (horasNum >= limiteHorasSLA) {
-            // VENCIDO: Rojo
-            slaStatusHTML = `<div style="color: #d32f2f; font-weight: bold;" title="Límite: ${limiteHorasSLA}h"><i class="fas fa-exclamation-triangle"></i> Fuera de SLA<br><small>${horasTranscurridas}h / ${limiteHorasSLA}h</small></div>`;
-        } else if (porcentajeUso >= 0.7) {
-            // CRÍTICO: Naranja (al alcanzar 1.4h en residentes o el 70% en otros)
-            slaStatusHTML = `<div style="color: #ef6c00; font-weight: bold;" title="Límite: ${limiteHorasSLA}h"><i class="fas fa-clock"></i> Crítico (70%)<br><small>${horasTranscurridas}h / ${limiteHorasSLA}h</small></div>`;
-        } else {
-            // EN TIEMPO: Verde
-            slaStatusHTML = `<div style="color: #2e7d32;" title="Límite: ${limiteHorasSLA}h"><i class="fas fa-check-circle"></i> En Tiempo<br><small>${horasTranscurridas}h / ${limiteHorasSLA}h</small></div>`;
-        }
-    } else {
-        slaStatusHTML = `<span style="color: #9e9e9e;">N/A</span>`;
-    }
+} else {
+    slaStatusHTML = `<span style="color: #9e9e9e;">N/A</span>`;
+}
 
     // 5. Procesamiento de Solución (Tu lógica original)
     let rawSolucion = cols[23] || "REVISIÓN"; 
