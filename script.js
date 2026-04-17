@@ -1960,8 +1960,8 @@ function clearTicketCoordination(ticketNum, btnElement) {
 
     const fila = btnElement.closest('tr');
     if (fila) {
-        fila.children[6].innerHTML = "-";
         fila.children[7].innerHTML = "-";
+        fila.children[8].innerHTML = "-";
         
         fila.style.backgroundColor = "#f8d7da";
         setTimeout(() => fila.style.backgroundColor = "", 800);
