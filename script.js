@@ -473,7 +473,7 @@ if (tbodyFinalizados) {
         const grp = t.grupo.toUpperCase();
         
         // Extraemos solo la fecha del campo fechaCreacion (asumiendo formato "DD/MM/YYYY HH:MM")
-        const fechaTicket = t.fechaCreacion.split(' ')[0]; 
+        const fechaTicket = t.fechaFin.split(' ')[0]; 
 
         const esDeHoy = (fechaTicket === hoyFormateado);
         const esCerrado = (est === "FINALIZADO" || est === "CERRADO");
