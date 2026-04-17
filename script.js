@@ -367,27 +367,42 @@ if (limiteHorasSLA > 0) {
         const tecnicoDisplay = ticket.tecnicoCoord ? `<span style="font-size:0.85em; font-weight:600;">${ticket.tecnicoCoord}</span>` : "-";
 
         // 9. Pintado de la fila final
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td style="color: var(--hp-blue); font-weight: bold;">${ticket.proyecto || 'N/A'}</td>
-            <td><b>${ticket.num}</b></td>
-            <td style="text-align:center; border-left: 1px solid #eee; background-color: #fcfcfc;">${ticket.slaHTML}</td>
-            <td><span class="status-pill" style="${statusStyle}">${ticket.estado}</span></td>
-            <td style="font-size: 0.8rem; color: #666;">${ticket.grupo}</td>
-            <td style="font-size: 0.8rem; color: #333; font-weight: 600;">${ticket.tipo}</td> 
-            <td>${ticket.dependencia} <br><small style="color: #999;">(${ticket.jurisdiccion})</small></td>
-            <td style="text-align:center; background-color: #f9fcff;">${fechaDisplay}</td>
-            <td style="text-align:center; background-color: #f9fcff;">${tecnicoDisplay}</td>
-            <td style="text-align:center;">${ticket.backup}</td>
-            <td>
-                <div style="display: flex; gap: 5px; justify-content: center;">
-                    <button class="btn-primary" style="padding: 5px 10px; font-size: 0.8rem;" onclick="openCoordEditor(${ticketIndex})">Gestionar</button>
-                    <button class="btn-secondary" style="padding: 5px 10px; font-size: 0.8rem; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;" onclick="clearTicketCoordination('${ticket.num}', this)" title="Limpiar Coordinación">
-                        <i class="fas fa-eraser"></i>
-                    </button>
-                </div>
-            </td>
-        `;
+        // 9. Pintado de la fila corregido
+const tr = document.createElement('tr');
+tr.innerHTML = `
+    <td style="color: var(--hp-blue); font-weight: bold;">${ticket.proyecto || 'N/A'}</td>
+    <td><b>${ticket.num}</b></td>
+    
+    <td style="text-align:center; border-left: 1px solid #eee; background-color: #fcfcfc;">
+        ${ticket.slaHTML}
+    </td>
+
+    <td><span class="status-pill" style="${statusStyle}">${ticket.estado}</span></td>
+    
+    <td style="font-size: 0.8rem; color: #666;">${ticket.grupo}</td>
+    
+    <td style="font-size: 0.8rem; color: #333; font-weight: 600;">${ticket.tipo}</td> 
+    
+    <td>
+        ${ticket.dependencia} <br>
+        <small style="color: #999;">(${ticket.jurisdiccion})</small>
+    </td>
+    
+    <td style="text-align:center; background-color: #f9fcff;">${fechaDisplay}</td>
+    
+    <td style="text-align:center; background-color: #f9fcff;">${tecnicoDisplay}</td>
+    
+    <td style="text-align:center;">${ticket.backup}</td>
+    
+    <td>
+        <div style="display: flex; gap: 5px; justify-content: center;">
+            <button class="btn-primary" style="padding: 5px 10px; font-size: 0.8rem;" onclick="openCoordEditor(${ticketIndex})">Gestionar</button>
+            <button class="btn-secondary" style="padding: 5px 10px; font-size: 0.8rem; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;" onclick="clearTicketCoordination('${ticket.num}', this)" title="Limpiar Coordinación">
+                <i class="fas fa-eraser"></i>
+            </button>
+        </div>
+    </td>
+`;
         const tableBody = document.querySelector('#tickets-table tbody');
         if(tableBody) tableBody.appendChild(tr);
     }
@@ -456,10 +471,12 @@ function saveTicketCoordination() {
         return;
     }
 
+    // Actualizamos el objeto en memoria
     selectedTicketData.fechaCoord = fechaInput;
     selectedTicketData.horaCoord = horaInput;
     selectedTicketData.tecnicoCoord = techInput;
 
+    // 1. Guardar en LocalStorage para persistencia
     try {
         let savedCoords = JSON.parse(localStorage.getItem('sco_coordinations') || '{}');
         savedCoords[selectedTicketData.num] = {
@@ -472,6 +489,7 @@ function saveTicketCoordination() {
         console.warn("Memoria caché bloqueada, guardado solo por sesión.", e);
     }
 
+    // 2. Actualizar la fila en la tabla visualmente
     try {
         const tableBody = document.querySelector('#tickets-table tbody');
         const filas = tableBody.querySelectorAll('tr');
@@ -479,15 +497,26 @@ function saveTicketCoordination() {
 
         for (let i = 0; i < filas.length; i++) {
             const fila = filas[i];
+            // El número de ticket está en la segunda celda (índice 1)
             const celdaTicket = fila.children[1].innerText.trim();
             
             if (celdaTicket === selectedTicketData.num.trim()) {
                 const partes = fechaInput.split('-'); 
                 const fechaFormateada = partes.length === 3 ? `${partes[2]}-${partes[1]}-${partes[0]}` : fechaInput;
                 
-                fila.children[6].innerHTML = `<span style="color:#007bff; font-weight:bold;">${fechaFormateada}</span><br><small>${horaInput}</small>`;
-                fila.children[7].innerHTML = `<span style="font-size:0.85em; font-weight:600;">${techInput}</span>`;
+                // --- ÍNDICES CORREGIDOS PARA LA NUEVA ESTRUCTURA ---
+                // [7] es la columna FECHA/HORA
+                // [8] es la columna TÉCNICO
+                fila.children[7].innerHTML = `
+                    <span style="color:#007bff; font-weight:bold;">${fechaFormateada}</span><br>
+                    <small>${horaInput}</small>
+                `;
                 
+                fila.children[8].innerHTML = `
+                    <span style="font-size:0.85em; font-weight:600;">${techInput}</span>
+                `;
+                
+                // Efecto visual de guardado exitoso
                 fila.style.backgroundColor = "#d4edda";
                 setTimeout(() => fila.style.backgroundColor = "", 800);
                 encontrado = true;
@@ -495,8 +524,13 @@ function saveTicketCoordination() {
             }
         }
 
-        if (encontrado) showToast(`✅ Guardado exitoso para TK ${selectedTicketData.num}`);
-        else showToast("✅ Guardado en memoria.");
+        if (encontrado) {
+            showToast(`✅ Guardado exitoso para TK ${selectedTicketData.num}`);
+            // Opcional: Cerrar el modal automáticamente tras guardar
+            closeCoordModal(); 
+        } else {
+            showToast("✅ Guardado en memoria.");
+        }
     } catch (e) {
         console.error("Error pintando la tabla:", e);
         showToast("✅ Guardado exitosamente.");
