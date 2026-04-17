@@ -193,6 +193,41 @@ function showModule(modName) {
 
 // --- 4. PROCESAMIENTO DE DATOS PRINCIPAL ---
 function processData() {
+
+const finalizadosHTML = `
+    <div class="card" style="border: none; padding: 0; background: transparent; margin-bottom: 20px;">
+        <div class="pjud-header-toggle" onclick="toggleSection('finalizados-body', 'icon-fin')" style="border-top: 4px solid #014f8b; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: white; padding: 10px 15px; border: 1px solid #ddd; border-bottom: none; border-radius: 5px 5px 0 0;">
+            <h3 style="color: #014f8b; margin: 0; font-size: 1.1rem;">
+                <i class="fas fa-check-double"></i> Requerimientos Finalizados en el día
+            </h3>
+            <i id="icon-fin" class="fas fa-chevron-down rotate-icon"></i>
+        </div>
+        
+        <div id="finalizados-body" style="background: white; border: 1px solid #ddd; padding: 0; border-radius: 0 0 5px 5px; display: none; 
+             max-height: 350px; overflow-y: auto; overflow-x: hidden;">
+            
+            <table style="width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 11px;">
+                <thead style="position: sticky; top: 0; z-index: 10; background: #f8f9fa;">
+                    <tr style="background-color: #f8f9fa; color: #333; text-align: left; text-transform: uppercase;">
+                        <th style="width: 8%; padding: 10px; border: 1px solid #eee;">Proyecto</th>
+                        <th style="width: 15%; padding: 10px; border: 1px solid #eee;">Ticket</th>
+                        <th style="width: 12%; padding: 10px; border: 1px solid #eee; text-align: center;">SLA Total</th>
+                        <th style="width: 10%; padding: 10px; border: 1px solid #eee;">Tipo</th>
+                        <th style="width: 25%; padding: 10px; border: 1px solid #eee;">Dependencia</th>
+                        <th style="width: 20%; padding: 10px; border: 1px solid #eee;">Técnico</th>
+                        <th style="width: 10%; padding: 10px; border: 1px solid #eee; text-align: center;">Hora Fin</th>
+                    </tr>
+                </thead>
+                <tbody id="bodyFinalizadosDia"></tbody>
+            </table>
+        </div>
+    </div>
+`;
+
+// Inyectamos el cascarón en el contenedor (asegúrate de tener <div id="container-finalizados"></div> en tu HTML)
+const container = document.getElementById('container-finalizados');
+if(container) container.innerHTML = finalizadosHTML;
+
     const fileInput = document.getElementById('csv-file');
     const filterElement = document.getElementById('group-filter');
     const selectedGroup = filterElement ? filterElement.value : "SCO"; 
@@ -331,7 +366,9 @@ if (limiteHorasSLA > 0) {
         solucionMDARaw: cleanCol(22),
         fechaCreacion: cleanCol(6),
         AsignadoA: cleanCol(4),
-        slaHTML: slaStatusHTML
+        slaHTML: slaStatusHTML,
+        horaFinalizacion: cleanCol(25), // Columna Z
+        fechaCreacion: cleanCol(6),
     };
 
     // 7. Lógica de tickets coordinados (Cache)
@@ -414,9 +451,95 @@ tr.innerHTML = `
         } else {
             showToast("⚠️ No se encontraron datos válidos en el archivo.");
         }
+
+// --- Llenado de la tabla de Finalizados ---
+// --- LÓGICA PARA TABLA DE FINALIZADOS DEL DÍA (COMPLETA Y AJUSTADA) ---
+const tbodyFinalizados = document.getElementById('bodyFinalizadosDia');
+if (tbodyFinalizados) {
+    tbodyFinalizados.innerHTML = ""; // Limpiar tabla antes de llenar
+
+    // 1. Obtener la fecha de hoy en formato DD/MM/YYYY
+    const d = new Date();
+    const hoyFormateado = String(d.getDate()).padStart(2, '0') + "/" + 
+                          String(d.getMonth() + 1).padStart(2, '0') + "/" + 
+                          d.getFullYear();
+
+    // 2. Obtener el grupo seleccionado actualmente en el filtro superior
+    const grupoFiltroActual = document.getElementById('group-filter').value.toUpperCase();
+
+    // 3. Filtrar tickets: Solo Hoy + Solo Cerrados/Finalizados + Solo el Grupo seleccionado
+    const finalizadosHoy = allTicketsList.filter(t => {
+        const est = t.estado.toUpperCase();
+        const grp = t.grupo.toUpperCase();
+        
+        // Extraemos solo la fecha del campo fechaCreacion (asumiendo formato "DD/MM/YYYY HH:MM")
+        const fechaTicket = t.fechaCreacion.split(' ')[0]; 
+
+        const esDeHoy = (fechaTicket === hoyFormateado);
+        const esCerrado = (est === "FINALIZADO" || est === "CERRADO");
+        const cumpleGrupo = (grupoFiltroActual === "TODOS") ? true : grp.includes(grupoFiltroActual);
+        
+        return esDeHoy && esCerrado && cumpleGrupo;
+    });
+
+    // 4. Si no hay tickets, mostrar mensaje informativo
+    if (finalizadosHoy.length === 0) {
+        tbodyFinalizados.innerHTML = `
+            <tr>
+                <td colspan="7" style="text-align:center; padding:20px; color:#999; font-style: italic;">
+                    No hay requerimientos finalizados el día de hoy (${hoyFormateado}) para el área seleccionada.
+                </td>
+            </tr>`;
+    } else {
+        // 5. Generar las filas de la tabla
+        finalizadosHoy.forEach(t => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = "1px solid #eee";
+            
+            tr.innerHTML = `
+                <td style="padding: 8px 10px; border: 1px solid #eee; color: #014f8b; font-weight: bold;">${t.proyecto}</td>
+                <td style="padding: 8px 10px; border: 1px solid #eee;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 5px;">
+                        <span>${t.num}</span>
+                        <button onclick="copiarTexto('${t.num}', this)" 
+                                style="border: none; background: none; cursor: pointer; color: #aaa; padding: 2px;" 
+                                title="Copiar Ticket">
+                            <i class="far fa-copy"></i>
+                        </button>
+                    </div>
+                </td>
+                <td style="padding: 8px 10px; border: 1px solid #eee; text-align: center;">${t.slaHTML || '-'}</td>
+                <td style="padding: 8px 10px; border: 1px solid #eee; color: #666;">${t.tipo}</td>
+                <td style="padding: 8px 10px; border: 1px solid #eee; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${t.dependencia}">
+                    ${t.dependencia}
+                </td>
+                <td style="padding: 8px 10px; border: 1px solid #eee; font-size: 0.85rem;">${t.finalizadoPor || t.tecnicoCoord || '-'}</td>
+                <td style="padding: 8px 10px; border: 1px solid #eee; text-align: center; font-weight: bold; color: #28a745;">
+                    ${t.horaFinalizacion || '-'}
+                </td>
+            `;
+            tbodyFinalizados.appendChild(tr);
+        });
+
+        // Opcional: Auto-desplegar la sección si hay tickets finalizados
+        const bodyFin = document.getElementById('finalizados-body');
+        const iconFin = document.getElementById('icon-fin');
+        if (bodyFin && iconFin) {
+            bodyFin.style.display = "block";
+            iconFin.style.transform = "rotate(180deg)";
+        }
+    }
+}
+        
     };
 
     reader.readAsText(file, "ISO-8859-1");
+
+
+
+
+
+    
 }
 
 function openCoordEditor(index) {
@@ -3715,4 +3838,29 @@ document.addEventListener('DOMContentLoaded', () => {
     renderizarSLA();    // Carga la tabla de Tiempos de Solución
 });
 
+
+function copiarTexto(texto, btn) {
+    navigator.clipboard.writeText(texto).then(() => {
+        const iconoOriginal = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check" style="color: #28a745;"></i>';
+        setTimeout(() => {
+            btn.innerHTML = iconoOriginal;
+        }, 1500);
+    }).catch(err => {
+        console.error('Error al copiar: ', err);
+    });
+}
+
+// Función genérica para abrir/cerrar secciones (la misma que usas en WhatsApp)
+function toggleSection(bodyId, iconId) {
+    const body = document.getElementById(bodyId);
+    const icon = document.getElementById(iconId);
+    if (body.style.display === "none" || body.style.display === "") {
+        body.style.display = "block";
+        icon.style.transform = "rotate(180deg)";
+    } else {
+        body.style.display = "none";
+        icon.style.transform = "rotate(0deg)";
+    }
+}
 
