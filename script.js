@@ -221,119 +221,159 @@ function processData() {
             console.warn("Memoria caché bloqueada por el navegador.");
         }
 
-        rows.forEach((row) => {
-            // Cambia esas dos líneas por esta única:
-const cols = row.split(';');
+rows.forEach((row) => {
+    // 1. Primero dividimos la fila en columnas
+    const cols = row.split(';');
 
-            if (cols.length < 5) return; 
-            
-            // ... (AQUÍ SIGUE EL RESTO DE TU CÓDIGO NORMAL: let rawSolucion = cols[23]...)
+    // 2. Validamos que la fila tenga datos
+    if (cols.length < 5) return;
 
-            let rawSolucion = cols[23] || "REVISIÓN"; 
-            let solucionLimpia = rawSolucion;
-            const textoUpper = rawSolucion.toUpperCase();
+    // 3. Definimos la función de limpieza para poder usarla
+    const cleanCol = (idx) => cols[idx] ? cols[idx].replace(/"/g, "").trim() : "";
 
-            if (textoUpper.includes("MASTERIZAC") || textoUpper.includes("MAQUETADO") || textoUpper.includes("IMAGEN")) {
-                solucionLimpia = "MASTERIZACIÓN";
-            } else if (textoUpper.includes("CAMBIO") && (textoUpper.includes("EQUIPO") || textoUpper.includes("PC") || textoUpper.includes("NOTEBOOK"))) {
-                solucionLimpia = "CAMBIO EQUIPO";
-            } else if (textoUpper.includes("RETIRO")) {
-                solucionLimpia = "RETIRO";
-            } else if (textoUpper.includes("CONFIGURA") || textoUpper.includes("PERFIL")) {
-                solucionLimpia = "CONFIGURACIÓN";
-            } else if (rawSolucion.length > 50) {
-                solucionLimpia = "SOPORTE TÉCNICO / REVISIÓN";
+    // 4. Extraemos datos básicos necesarios
+    const minutosConsumidos = parseInt(cleanCol(26)) || 0; // Columna AA
+    const horasTranscurridas = (minutosConsumidos / 60).toFixed(1);
+    const dependenciaTexto = cleanCol(12).toUpperCase();
+    const grupoResolutor = cleanCol(3).toUpperCase(); // Columna Grupo
+
+    // --- LÓGICA SEMÁFORO SLA HARDWARE (70%) ---
+    let limiteHorasSLA = 0;
+
+    // REGLA NUEVA: Si el grupo es Residentes, el SLA es fijo de 2 horas
+    if (grupoResolutor.includes("RESIDENTES")) {
+        limiteHorasSLA = 2;
+    } else {
+        // Si no es residente, buscamos en la matriz por comuna
+        const infoComuna = DATA_MATRIZ.find(m => dependenciaTexto.includes(m.comuna.toUpperCase()));
+        limiteHorasSLA = infoComuna ? parseInt(infoComuna.slahardware) : 0;
+    }
+
+    let slaStatusHTML = "";
+
+    if (limiteHorasSLA > 0) {
+        const horasNum = parseFloat(horasTranscurridas);
+        const porcentajeUso = (horasNum / limiteHorasSLA);
+
+        if (horasNum >= limiteHorasSLA) {
+            // VENCIDO: Rojo
+            slaStatusHTML = `<div style="color: #d32f2f; font-weight: bold;" title="Límite: ${limiteHorasSLA}h"><i class="fas fa-exclamation-triangle"></i> Fuera de SLA<br><small>${horasTranscurridas}h / ${limiteHorasSLA}h</small></div>`;
+        } else if (porcentajeUso >= 0.7) {
+            // CRÍTICO: Naranja (al alcanzar 1.4h en residentes o el 70% en otros)
+            slaStatusHTML = `<div style="color: #ef6c00; font-weight: bold;" title="Límite: ${limiteHorasSLA}h"><i class="fas fa-clock"></i> Crítico (70%)<br><small>${horasTranscurridas}h / ${limiteHorasSLA}h</small></div>`;
+        } else {
+            // EN TIEMPO: Verde
+            slaStatusHTML = `<div style="color: #2e7d32;" title="Límite: ${limiteHorasSLA}h"><i class="fas fa-check-circle"></i> En Tiempo<br><small>${horasTranscurridas}h / ${limiteHorasSLA}h</small></div>`;
+        }
+    } else {
+        slaStatusHTML = `<span style="color: #9e9e9e;">N/A</span>`;
+    }
+
+    // 5. Procesamiento de Solución (Tu lógica original)
+    let rawSolucion = cols[23] || "REVISIÓN"; 
+    let solucionLimpia = rawSolucion;
+    const textoUpper = rawSolucion.toUpperCase();
+
+    if (textoUpper.includes("MASTERIZAC") || textoUpper.includes("MAQUETADO") || textoUpper.includes("IMAGEN")) {
+        solucionLimpia = "MASTERIZACIÓN";
+    } else if (textoUpper.includes("CAMBIO") && (textoUpper.includes("EQUIPO") || textoUpper.includes("PC") || textoUpper.includes("NOTEBOOK"))) {
+        solucionLimpia = "CAMBIO EQUIPO";
+    } else if (textoUpper.includes("RETIRO")) {
+        solucionLimpia = "RETIRO";
+    } else if (textoUpper.includes("CONFIGURA") || textoUpper.includes("PERFIL")) {
+        solucionLimpia = "CONFIGURACIÓN";
+    } else if (rawSolucion.length > 50) {
+        solucionLimpia = "SOPORTE TÉCNICO / REVISIÓN";
+    }
+
+    const ticketNum = cleanCol(1);
+    let rawIP = (cols[11] && cols[11].includes('.')) ? cols[11].replace(/"/g, "").trim() : "-";
+
+    // 6. Creación del objeto Ticket
+    const ticket = {
+        num: ticketNum,
+        estado: cleanCol(2),
+        grupo: cleanCol(3),
+        finalizadoPor: cleanCol(5), 
+        usuario: cleanCol(8),
+        correo: cleanCol(10), 
+        ip: rawIP,
+        dependencia: cleanCol(12),
+        jurisdiccion: cleanCol(13) || "GENERAL",
+        direccion: cleanCol(14) || "Sin dirección",
+        modelo: cleanCol(15) || "Modelo N/A", 
+        proyecto: cleanCol(16), 
+        tipo: cleanCol(17) || "Equipo",       
+        serie: cleanCol(18) || "Serie N/A",
+        fechaFin: cleanCol(24), 
+        backup: cleanCol(27) ? cleanCol(27).toUpperCase() : "NO",
+        guiaRetiro: cleanCol(28) ? cleanCol(28).toUpperCase() : "NO", 
+        solucion: solucionLimpia, 
+        despachosRaw: cleanCol(33) || cleanCol(27),
+        solucionMDARaw: cleanCol(22),
+        fechaCreacion: cleanCol(6),
+        AsignadoA: cleanCol(4),
+        slaHTML: slaStatusHTML
+    };
+
+    // 7. Lógica de tickets coordinados (Cache)
+    if (savedCoords[ticketNum]) {
+        ticket.fechaCoord = savedCoords[ticketNum].fechaCoord;
+        ticket.horaCoord = savedCoords[ticketNum].horaCoord;
+        ticket.tecnicoCoord = savedCoords[ticketNum].tecnicoCoord;
+    }
+
+    allTicketsList.push(ticket);
+
+    // 8. Filtrado para mostrar en tabla
+    const estadoUpper = ticket.estado.toUpperCase();
+    const isPending = estadoUpper !== "CERRADO" && estadoUpper !== "FINALIZADO";
+    let isTargetGroup = (selectedGroup === "TODOS") ? true : ticket.grupo.toUpperCase().includes(selectedGroup);
+
+    if (isTargetGroup && isPending) {
+        const ticketIndex = currentTicketsList.length;
+        currentTicketsList.push(ticket);
+
+        let statusStyle = "";
+        if (estadoUpper.includes("COORDINADO")) statusStyle = "background-color: #d1e7dd; color: #0f5132; border: 1px solid #badbcc;"; 
+        else if (estadoUpper.includes("EN PROCESO")) statusStyle = "background-color: #fff3cd; color: #664d03; border: 1px solid #ffecb5;"; 
+        else statusStyle = "background-color: #f8d7da; color: #842029; border: 1px solid #f5c2c7;"; 
+
+        let fechaDisplay = "-";
+        if (ticket.fechaCoord) {
+            const partes = ticket.fechaCoord.split('-');
+            if (partes.length === 3) {
+                fechaDisplay = `<span style="color:#007bff; font-weight:bold;">${partes[2]}-${partes[1]}-${partes[0]}</span><br><small>${ticket.horaCoord || ''}</small>`;
             }
+        }
+        const tecnicoDisplay = ticket.tecnicoCoord ? `<span style="font-size:0.85em; font-weight:600;">${ticket.tecnicoCoord}</span>` : "-";
 
-            const cleanCol = (idx) => cols[idx] ? cols[idx].replace(/"/g, "").trim() : "";
-            const rawGrupo = cleanCol(3);
-
-            let rawIP = "-";
-            if (cols[11] && cols[11].includes('.')) {
-                rawIP = cols[11]; 
-            }
-
-            const ticketNum = cleanCol(1);
-            
-            const ticket = {
-                num: ticketNum,
-                estado: cleanCol(2),
-                grupo: rawGrupo,
-                finalizadoPor: cleanCol(5), 
-                usuario: cleanCol(8),
-                correo: cleanCol(10), 
-                ip: rawIP.replace(/"/g, "").trim(),
-                dependencia: cleanCol(12),
-                jurisdiccion: cleanCol(13) || "GENERAL",
-                direccion: cleanCol(14) || "Sin dirección",
-                modelo: cleanCol(15) || "Modelo N/A", 
-                proyecto: cleanCol(16), 
-                tipo: cleanCol(17) || "Equipo",       
-                serie: cleanCol(18) || "Serie N/A",
-                fechaFin: cleanCol(24), 
-                backup: cleanCol(27) ? cleanCol(27).toUpperCase() : "NO",
-                guiaRetiro: cleanCol(28) ? cleanCol(28).toUpperCase() : "NO", 
-                solucion: solucionLimpia, 
-                despachosRaw: cleanCol(33) || cleanCol(27) ,
-                solucionMDARaw: cleanCol(22),
-                fechaCreacion: cleanCol(6),
-                AsignadoA:cleanCol(4)
-            };
-
-            if (savedCoords[ticketNum]) {
-                ticket.fechaCoord = savedCoords[ticketNum].fechaCoord;
-                ticket.horaCoord = savedCoords[ticketNum].horaCoord;
-                ticket.tecnicoCoord = savedCoords[ticketNum].tecnicoCoord;
-            }
-
-            allTicketsList.push(ticket);
-
-            const estadoUpper = ticket.estado.toUpperCase();
-            const grupoUpper = ticket.grupo.toUpperCase();
-            // Aceptamos cualquier ticket que NO esté cerrado definitivamente
-const isPending = estadoUpper !== "CERRADO" && estadoUpper !== "FINALIZADO";
-            let isTargetGroup = (selectedGroup === "TODOS") ? true : grupoUpper.includes(selectedGroup);
-
-            if (isTargetGroup && isPending) {
-                const ticketIndex = currentTicketsList.length;
-                currentTicketsList.push(ticket);
-
-                let statusStyle = "";
-                if (estadoUpper.includes("COORDINADO")) statusStyle = "background-color: #d1e7dd; color: #0f5132; border: 1px solid #badbcc;"; 
-                else if (estadoUpper.includes("EN PROCESO")) statusStyle = "background-color: #fff3cd; color: #664d03; border: 1px solid #ffecb5;"; 
-                else statusStyle = "background-color: #f8d7da; color: #842029; border: 1px solid #f5c2c7;"; 
-
-                let fechaDisplay = "-";
-                if (ticket.fechaCoord) {
-                    const partes = ticket.fechaCoord.split('-');
-                    if (partes.length === 3) {
-                        fechaDisplay = `<span style="color:#007bff; font-weight:bold;">${partes[2]}-${partes[1]}-${partes[0]}</span><br><small>${ticket.horaCoord || ''}</small>`;
-                    }
-                }
-                const tecnicoDisplay = ticket.tecnicoCoord ? `<span style="font-size:0.85em; font-weight:600;">${ticket.tecnicoCoord}</span>` : "-";
-
-            const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td style="color: var(--hp-blue); font-weight: bold;">${ticket.proyecto || 'N/A'}</td>
-                    <td><b>${ticket.num}</b></td>
-                    <td><span class="status-pill" style="${statusStyle}">${ticket.estado}</span></td>
-                    <td style="font-size: 0.8rem; color: #666;">${ticket.grupo}</td>
-                    <td style="font-size: 0.8rem; color: #333; font-weight: 600;">${ticket.tipo}</td> <td>${ticket.dependencia} <br><small style="color: #999;">(${ticket.jurisdiccion})</small></td>
-                    <td style="text-align:center; background-color: #f9fcff;">${fechaDisplay}</td>
-                    <td style="text-align:center; background-color: #f9fcff;">${tecnicoDisplay}</td>
-                    <td style="text-align:center;">${ticket.backup}</td>
-                    <td>
-                        <div style="display: flex; gap: 5px; justify-content: center;">
-                            <button class="btn-primary" style="padding: 5px 10px; font-size: 0.8rem;" onclick="openCoordEditor(${ticketIndex})">Gestionar</button>
-                            <button class="btn-secondary" style="padding: 5px 10px; font-size: 0.8rem; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;" onclick="clearTicketCoordination('${ticket.num}', this)" title="Limpiar Coordinación">
-                                <i class="fas fa-eraser"></i>
-                            </button>
-                        </div>
-                    </td>
-                `;
-                if(tableBody) tableBody.appendChild(tr);
-            }
-        });
+        // 9. Pintado de la fila final
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="color: var(--hp-blue); font-weight: bold;">${ticket.proyecto || 'N/A'}</td>
+            <td><b>${ticket.num}</b></td>
+            <td style="text-align:center; border-left: 1px solid #eee; background-color: #fcfcfc;">${ticket.slaHTML}</td>
+            <td><span class="status-pill" style="${statusStyle}">${ticket.estado}</span></td>
+            <td style="font-size: 0.8rem; color: #666;">${ticket.grupo}</td>
+            <td style="font-size: 0.8rem; color: #333; font-weight: 600;">${ticket.tipo}</td> 
+            <td>${ticket.dependencia} <br><small style="color: #999;">(${ticket.jurisdiccion})</small></td>
+            <td style="text-align:center; background-color: #f9fcff;">${fechaDisplay}</td>
+            <td style="text-align:center; background-color: #f9fcff;">${tecnicoDisplay}</td>
+            <td style="text-align:center;">${ticket.backup}</td>
+            <td>
+                <div style="display: flex; gap: 5px; justify-content: center;">
+                    <button class="btn-primary" style="padding: 5px 10px; font-size: 0.8rem;" onclick="openCoordEditor(${ticketIndex})">Gestionar</button>
+                    <button class="btn-secondary" style="padding: 5px 10px; font-size: 0.8rem; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;" onclick="clearTicketCoordination('${ticket.num}', this)" title="Limpiar Coordinación">
+                        <i class="fas fa-eraser"></i>
+                    </button>
+                </div>
+            </td>
+        `;
+        const tableBody = document.querySelector('#tickets-table tbody');
+        if(tableBody) tableBody.appendChild(tr);
+    }
+});
 
         if (allTicketsList.length > 0) {
             if (currentTicketsList.length > 0) showToast(`Cargados: ${currentTicketsList.length} tickets de ${selectedGroup}.`);
@@ -663,7 +703,7 @@ function intentarAbrirOutlook(para, cc, asunto) {
     const start = Date.now();
     window.location.href = mailto;
     setTimeout(() => {
-        if (Date.now() - start < 1000) showToast("Outlook bloqueado. Use copiar.");
+        if (Date.now() - start < 1000) showToast("Abriendo Outlook.");
     }, 500);
 }
 
