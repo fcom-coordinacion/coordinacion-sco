@@ -2016,6 +2016,7 @@ const fechaLab = window.mapaFechasLab[serieTicket] ? window.mapaFechasLab[serieT
                     <th>Finalización</th>
                     <th>Estado Físico</th>
                     <th>Finalizado por</th>
+                    <th>Dependencia</th>
                     <th>Tipo</th>
                     <th>Serie</th>
                     <th>Despachos</th>
