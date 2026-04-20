@@ -1995,6 +1995,7 @@ const fechaLab = window.mapaFechasLab[serieTicket] ? window.mapaFechasLab[serieT
                 <td style="padding: 8px; border: 1px solid #ccc;">${t.fechaFin}</td>
                 <td style="padding: 8px; border: 1px solid #ccc; text-align:center;">${badgeEstado}</td>
                 <td style="padding: 8px; border: 1px solid #ccc;">${t.finalizadoPor || t.usuario}</td>
+                <td style="padding: 8px; border: 1px solid #ccc;">${t.dependencia}</td>
                 <td style="padding: 8px; border: 1px solid #ccc;">${t.tipo}</td>
                 <td style="padding: 8px; border: 1px solid #ccc;">${t.serie}</td>
                 <td style="padding: 8px; border: 1px solid #ccc;">${t.despachosRaw}</td>
