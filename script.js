@@ -171,7 +171,7 @@ const CORREOS_JURISDICCION = {
     "GENERAL": "soporte.central@fcom.cl"
 };
 
-const CORREOS_FIJOS = "c.zapata@fcom.cl; a.vacca@fcom.cl; s.guzman@fcom.cl; dvillarroels@pjud.cl; j.marrufo@fcom.cl;s.valbuena@fcom.cl"
+const CORREOS_FIJOS = "c.zapata@fcom.cl;j.sanhueza@fcom.cl; a.vacca@fcom.cl; s.guzman@fcom.cl; dvillarroels@pjud.cl; j.marrufo@fcom.cl;s.valbuena@fcom.cl"
 
 // --- 3. LÓGICA DE ACCESO ---
 function checkPin() {
@@ -672,15 +672,27 @@ function generateEmail() {
     const esCambio = (selectedTicketData.backup === "SI");
     const actividad = esCambio ? "CAMBIO DE EQUIPO" : "REVISIÓN / CONFIGURACION EQUIPO";
 
+    // Destinatario principal
     const para = selectedTicketData.correo || "";
+
+    // Lógica de Copias (CC)
     const correoJurisdiccion = CORREOS_JURISDICCION[selectedTicketData.jurisdiccion] || CORREOS_JURISDICCION["GENERAL"];
     let cc = `${CORREOS_FIJOS}; ${correoJurisdiccion}`;
     
+    // Si requiere Backup (SI), agregamos los correos de soporte PJud
     if (esCambio) {
         const correosExtra = "alonconu@pjud.cl;rmanriquezl@pjud.cl;ariveros@pjud.cl;vperezc@pjud.cl;cescobarz@pjud.cl;lrcastro@pjud.cl";
         cc += `; ${correosExtra}`;
     }
 
+    // --- NUEVA VALIDACIÓN: MULTIFUNCIONAL + BACKUP SI ---
+    const esMultifuncional = (selectedTicketData.tipo || "").toUpperCase().includes("MULTIFUNCIONAL");
+    if (esMultifuncional && esCambio) {
+        cc += "; j.cabello@fcom.cl; c.fuentes@fcom.cl";
+    }
+    // ---------------------------------------------------
+
+    // Copias según el proyecto HP
     const proyecto = (selectedTicketData.proyecto || "").toUpperCase();
     if (proyecto.includes("PJUD 4")) cc += "; carol.oteiza@hp.com";
     else if (proyecto.includes("PJUD 5")) cc += "; christian.ojeda@hp.com";
@@ -688,16 +700,6 @@ function generateEmail() {
     const asunto = `Requerimiento ${selectedTicketData.num} - Coordinación SCO - Proyecto ${selectedTicketData.proyecto}`;
     const nombreCompleto = selectedTicketData.usuario || "Usuario";
     const primerNombre = nombreCompleto.trim().split(' ')[0];
-
-    let serieDespachada = "Pendiente / No registrada";
-    const rawDespacho = selectedTicketData.despachosRaw || "";
-    
-    if (rawDespacho.includes(":")) {
-        const parts = rawDespacho.split(":");
-        if (parts.length >= 2) {
-            serieDespachada = parts[1].trim(); 
-        }
-    }
 
     const tablaEstilizada = `
     <table style="border-collapse: collapse; width: 100%; max-width: 350px; font-family: Segoe UI, Calibri, Arial, sans-serif; border: 1px solid #014f8b; font-size: 11px;">
@@ -707,10 +709,8 @@ function generateEmail() {
             <tr><td style="padding: 4px 6px; border: 1px solid #ddd; font-weight: bold;">PROYECTO</td><td style="padding: 4px 6px; border: 1px solid #ddd;">${selectedTicketData.proyecto}</td></tr>
             <tr style="background-color: #f2f2f2;"><td style="padding: 4px 6px; border: 1px solid #ddd; font-weight: bold;">DEPENDENCIA</td><td style="padding: 4px 6px; border: 1px solid #ddd;">${selectedTicketData.dependencia}</td></tr>
             <tr><td style="padding: 4px 6px; border: 1px solid #ddd; font-weight: bold;">ACTIVIDAD</td><td style="padding: 4px 6px; border: 1px solid #ddd;">${actividad}</td></tr>
-            
             <tr style="background-color: #f2f2f2;"><td style="padding: 4px 6px; border: 1px solid #ddd; font-weight: bold;">TIPO EQUIPO</td><td style="padding: 4px 6px; border: 1px solid #ddd;">${selectedTicketData.tipo}</td></tr>
             <tr><td style="padding: 4px 6px; border: 1px solid #ddd; font-weight: bold;">SERIE REPORTADA</td><td style="padding: 4px 6px; border: 1px solid #ddd;">${selectedTicketData.serie}</td></tr>
-            
             <tr><td style="padding: 4px 6px; border: 1px solid #ddd; font-weight: bold;">FECHA</td><td style="padding: 4px 6px; border: 1px solid #ddd;">${date}</td></tr>
             <tr style="background-color: #f2f2f2;"><td style="padding: 4px 6px; border: 1px solid #ddd; font-weight: bold;">HORA</td><td style="padding: 4px 6px; border: 1px solid #ddd;">${time}</td></tr>
             <tr><td style="padding: 4px 6px; border: 1px solid #ddd; font-weight: bold;">TÉCNICO</td><td style="padding: 4px 6px; border: 1px solid #ddd;">${tech}</td></tr>
@@ -1051,7 +1051,7 @@ function generarInformativoTecnico() {
     const container = document.getElementById('info-result-container');
     const asunto = `Informativo Técnico - Actividades Coordinadas SCO PJUD`;
     const para = "j.santos@fcom.cl";
-    const cc = "c.zapata@fcom.cl; e.suarez@fcom.cl; e.socorro@fcom.cl; l.torres@fcom.cl; juan.diaz@fcom.cl; sandrade_fcom@pjud.cl; jchavez_hp@pjud.cl; s.guzman@fcom.cl; jmarrufo_hp@pjud.cl; f.solar@fcom.cl; svaldivieso_hp@pjud.cl; myabrudez_fcom@pjud.cl; j.riffo@fcom.cl; a.vacca@fcom.cl";
+    const cc = "c.zapata@fcom.cl;j.sanhueza@fcom.cl; e.suarez@fcom.cl; e.socorro@fcom.cl; l.torres@fcom.cl; juan.diaz@fcom.cl; sandrade_fcom@pjud.cl; jchavez_hp@pjud.cl; s.guzman@fcom.cl; jmarrufo_hp@pjud.cl; f.solar@fcom.cl; svaldivieso_hp@pjud.cl; myabrudez_fcom@pjud.cl; j.riffo@fcom.cl; a.vacca@fcom.cl";
 
     const hoy = new Date();
     const diaObjetivo = new Date(hoy);
@@ -2016,7 +2016,7 @@ const fechaLab = window.mapaFechasLab[serieTicket] ? window.mapaFechasLab[serieT
                     <th>Finalización</th>
                     <th>Estado Físico</th>
                     <th>Finalizado por</th>
-                    <th>Dependencia</th>
+                     <th>Dependencia</th>
                     <th>Tipo</th>
                     <th>Serie</th>
                     <th>Despachos</th>
