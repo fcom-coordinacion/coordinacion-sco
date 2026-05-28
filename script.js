@@ -784,7 +784,7 @@ function generateWhatsApp() {
         serieDespachada = selectedTicketData.despachosRaw.trim();
     }
 
-    const mensaje = `*TK:* ${selectedTicketData.num}\n🧰 *Tecnico:* ${tech}\n📀 *Proyecto:* ${selectedTicketData.proyecto}\n🏛️ *Tribunal:* ${selectedTicketData.dependencia}\n🏛️ *Direccion:* ${dir}\n🗓️ *Fecha Coordinada:* ${date}\n⏰ *Hora:* ${time}\n📝 *Actividad:* ${actividad}\n💻 *Tipo Equipo:* ${tipoEquipo}\n🏷️ *Serie Reportada:* ${serieReportada}\n📦 *Serie Despachada:* ${serieDespachada}\n🚨 *OBLIGATORIO:* COLOCAR LA IP EN TODAS LAS ATENCIONES\n\n⚠️ *Nota:* SI ES UN CAMBIO DE MULTIFUNCIONAL FAVOR COMUNICARSE CON EL ADM DE IMPRESION (JOSE CHAVEZ) ANTES DE DESCONECTAR LA MULTIFUNCIONAL SALIENTE. ENTREGAR DIRECCION IP.
+    const mensaje = `*TK:* ${selectedTicketData.num}\n🧰 *Tecnico:* ${tech}\n📀 *Proyecto:* ${selectedTicketData.proyecto}\n🏛️ *Tribunal:* ${selectedTicketData.dependencia}\n🏛️ *Direccion:* ${dir}\n🗓️ *Fecha Coordinada:* ${date}\n⏰ *Hora:* ${time}\n📝 *Actividad:* ${actividad}\n💻 *Tipo Equipo:* ${tipoEquipo}\n🏷️ *Serie Reportada:* ${serieReportada}\n📦 *Serie Despachada:* ${serieDespachada}\n\n🚨🚨🚨 *OBLIGATORIO:\n*   -COLOCAR LA IP EN TODAS LAS ATENCIONES\n *   -ENVIAR PANTALLAZO A COORDINACION DE PROCESO DE MIGRACION DE DATA "FASTCOPY"*\n\n⚠️ *Nota:* SI ES UN CAMBIO DE MULTIFUNCIONAL FAVOR COMUNICARSE CON EL ADM DE IMPRESION (JOSE CHAVEZ) ANTES DE DESCONECTAR LA MULTIFUNCIONAL SALIENTE. ENTREGAR DIRECCION IP.
 `;
     
     const htmlWhatsApp = `
