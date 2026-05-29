@@ -171,7 +171,7 @@ const CORREOS_JURISDICCION = {
     "GENERAL": "soporte.central@fcom.cl"
 };
 
-const CORREOS_FIJOS = "c.zapata@fcom.cl;j.sanhueza@fcom.cl; a.vacca@fcom.cl; s.guzman@fcom.cl; dvillarroels@pjud.cl; j.marrufo@fcom.cl;s.valbuena@fcom.cl"
+const CORREOS_FIJOS = "c.zapata@fcom.cl;j.sanhueza@fcom.cl; a.vacca@fcom.cl; s.guzman@fcom.cl; dvillarroels@pjud.cl; j.marrufo@fcom.cl;s.valbuena@fcom.cl;joyarzo@pjud.cl"
 
 // --- 3. LÓGICA DE ACCESO ---
 function checkPin() {
@@ -681,7 +681,7 @@ function generateEmail() {
     
     // Si requiere Backup (SI), agregamos los correos de soporte PJud
     if (esCambio) {
-        const correosExtra = "alonconu@pjud.cl;rmanriquezl@pjud.cl;ariveros@pjud.cl;vperezc@pjud.cl;cescobarz@pjud.cl;lrcastro@pjud.cl";
+        const correosExtra = "jcordenes@pjud.cl;rmanriquezl@pjud.cl;ariveros@pjud.cl;vperezc@pjud.cl;cescobarz@pjud.cl;lrcastro@pjud.cl";
         cc += `; ${correosExtra}`;
     }
 
