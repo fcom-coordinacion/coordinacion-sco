@@ -1051,7 +1051,7 @@ function generarInformativoTecnico() {
     const container = document.getElementById('info-result-container');
     const asunto = `Informativo Técnico - Actividades Coordinadas SCO PJUD`;
     const para = "j.santos@fcom.cl";
-    const cc = "c.zapata@fcom.cl;j.sanhueza@fcom.cl; e.suarez@fcom.cl; e.socorro@fcom.cl; l.torres@fcom.cl; juan.diaz@fcom.cl; sandrade_fcom@pjud.cl; jchavez_hp@pjud.cl; s.guzman@fcom.cl; jmarrufo_hp@pjud.cl; f.solar@fcom.cl; svaldivieso_hp@pjud.cl; myabrudez_fcom@pjud.cl; j.riffo@fcom.cl; a.vacca@fcom.cl";
+    const cc = "c.zapata@fcom.cl;j.sanhueza@fcom.cl; e.suarez@fcom.cl; e.socorro@fcom.cl; juan.diaz@fcom.cl; jchavez_hp@pjud.cl; s.guzman@fcom.cl; jmarrufo_hp@pjud.cl; f.solar@fcom.cl; svaldivieso_hp@pjud.cl; myabrudez_fcom@pjud.cl; j.riffo@fcom.cl; a.vacca@fcom.cl";
 
     const hoy = new Date();
     const diaObjetivo = new Date(hoy);
