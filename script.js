@@ -171,7 +171,7 @@ const CORREOS_JURISDICCION = {
     "GENERAL": "soporte.central@fcom.cl"
 };
 
-const CORREOS_FIJOS = "c.zapata@fcom.cl;j.sanhueza@fcom.cl; a.vacca@fcom.cl; s.guzman@fcom.cl; dvillarroels@pjud.cl; j.marrufo@fcom.cl;s.valbuena@fcom.cl;joyarzo@pjud.cl"
+const CORREOS_FIJOS = "c.zapata@fcom.cl;j.sanhueza@fcom.cl; a.vacca@fcom.cl; s.guzman@fcom.cl; dvillarroels@pjud.cl; j.marrufo@fcom.cl;s.valbuena@fcom.cl"
 
 // --- 3. LÓGICA DE ACCESO ---
 function checkPin() {
@@ -681,7 +681,7 @@ function generateEmail() {
     
     // Si requiere Backup (SI), agregamos los correos de soporte PJud
     if (esCambio) {
-        const correosExtra = "jcordenes@pjud.cl;rmanriquezl@pjud.cl;ariveros@pjud.cl;vperezc@pjud.cl;cescobarz@pjud.cl;lrcastro@pjud.cl";
+        const correosExtra = "alonconu@pjud.cl;rmanriquezl@pjud.cl;ariveros@pjud.cl;vperezc@pjud.cl;cescobarz@pjud.cl;lrcastro@pjud.cl";
         cc += `; ${correosExtra}`;
     }
 
@@ -784,7 +784,7 @@ function generateWhatsApp() {
         serieDespachada = selectedTicketData.despachosRaw.trim();
     }
 
-    const mensaje = `*TK:* ${selectedTicketData.num}\n🧰 *Tecnico:* ${tech}\n📀 *Proyecto:* ${selectedTicketData.proyecto}\n🏛️ *Tribunal:* ${selectedTicketData.dependencia}\n🏛️ *Direccion:* ${dir}\n🗓️ *Fecha Coordinada:* ${date}\n⏰ *Hora:* ${time}\n📝 *Actividad:* ${actividad}\n💻 *Tipo Equipo:* ${tipoEquipo}\n🏷️ *Serie Reportada:* ${serieReportada}\n📦 *Serie Despachada:* ${serieDespachada}\n\n🚨🚨🚨 *OBLIGATORIO*🚨🚨🚨\n*   -COLOCAR LA IP EN TODAS LAS ATENCIONES\n*   -ENVIAR PANTALLAZO A COORDINACION DE PROCESO DE MIGRACION DE DATA "FASTCOPY"*\n\n⚠️ *Nota:* SI ES UN CAMBIO DE MULTIFUNCIONAL FAVOR COMUNICARSE CON EL ADM DE IMPRESION (JOSE CHAVEZ) ANTES DE DESCONECTAR LA MULTIFUNCIONAL SALIENTE. ENTREGAR DIRECCION IP.
+    const mensaje = `*TK:* ${selectedTicketData.num}\n🧰 *Tecnico:* ${tech}\n📀 *Proyecto:* ${selectedTicketData.proyecto}\n🏛️ *Tribunal:* ${selectedTicketData.dependencia}\n🏛️ *Direccion:* ${dir}\n🗓️ *Fecha Coordinada:* ${date}\n⏰ *Hora:* ${time}\n📝 *Actividad:* ${actividad}\n💻 *Tipo Equipo:* ${tipoEquipo}\n🏷️ *Serie Reportada:* ${serieReportada}\n📦 *Serie Despachada:* ${serieDespachada}\n🚨 *OBLIGATORIO:* COLOCAR LA IP EN TODAS LAS ATENCIONES\n\n⚠️ *Nota:* SI ES UN CAMBIO DE MULTIFUNCIONAL FAVOR COMUNICARSE CON EL ADM DE IMPRESION (JOSE CHAVEZ) ANTES DE DESCONECTAR LA MULTIFUNCIONAL SALIENTE. ENTREGAR DIRECCION IP.
 `;
     
     const htmlWhatsApp = `
@@ -1225,6 +1225,7 @@ function exportarInformativoExcel() {
 }
 
 // --- REPORTE: EN BLANCO ---
+// --- REPORTE: AUDITORÍA DE CAMPOS E INCONSISTENCIAS DE SOLUCIÓN ---
 function generarReporteEnBlanco() {
     const container = document.getElementById('blanco-result-container');
     const fInicio = document.getElementById('blanco-fecha-inicio').value;
@@ -1247,6 +1248,7 @@ function generarReporteEnBlanco() {
         const proyUpper = t.proyecto ? t.proyecto.toUpperCase() : "";
         if (filtroProyecto !== "TODOS" && !proyUpper.includes(filtroProyecto)) return false;
 
+        // 1. VALIDACIÓN DE CAMPOS VACÍOS
         const modUpper = t.modelo ? t.modelo.toUpperCase().trim() : "";
         const sinModelo = modUpper === "" || modUpper === "MODELO N/A" || modUpper === "N/A" || modUpper === "-" || modUpper === "S/N" || modUpper === "." || modUpper === "0";
 
@@ -1259,8 +1261,35 @@ function generarReporteEnBlanco() {
         const jurUpper = t.jurisdiccion ? t.jurisdiccion.toUpperCase().trim() : "";
         const sinJurisdiccion = jurUpper === "" || jurUpper === "N/A" || jurUpper === "-" || jurUpper === "GENERAL";
 
-        if (!(sinModelo || sinTipo || sinDependencia || sinJurisdiccion)) return false;
+        const tieneCampoVacio = (sinModelo || sinTipo || sinDependencia || sinJurisdiccion);
 
+        // 2. VALIDACIÓN DE INCONSISTENCIAS DE PROCESO (Columna W - solucionMDARaw)
+        const grupoUpper = t.grupo ? t.grupo.toUpperCase().trim() : "";
+        const solUpper = t.solucionMDARaw ? t.solucionMDARaw.toUpperCase().trim() : "";
+
+        let tieneInconsistencia = false;
+
+        // Regla 1: Si GRUPO RESOLUTOR contiene "RESIDENTE", la Solución DEBE ser "DERIVADO TERRENO"
+        if (grupoUpper.includes("RESIDENTES") && !solUpper.includes("DERIVADO TERRENO")) {
+            tieneInconsistencia = true;
+        }
+        // Regla 2: Si grupo resolutor NO contiene "RESIDENTE" ni "SERVICIOS_ADICIONALES", la Solución NO puede ser "DERIVADO TERRENO"
+        else if (!grupoUpper.includes("RESIDENTE") && !grupoUpper.includes("SERVICIOS_ADICIONALES") && solUpper.includes("DERIVADO TERRENO")) {
+            tieneInconsistencia = true;
+        }
+        // Regla 3: Si grupo resolutor contiene "SCO", la Solución DEBE ser "DERIVADO SCO"
+        else if (grupoUpper.includes("SCO") && !solUpper.includes("DERIVADO SCO")) {
+            tieneInconsistencia = true;
+        }
+        // Regla 4: Si grupo resolutor contiene "OTRA AREA" u "OTRA ÁREA", la Solución DEBE ser "DERIVADO OTRA AREA"
+        else if ((grupoUpper.includes("OTRA AREA") || grupoUpper.includes("OTRA AREA")) && !solUpper.includes("DERIVADO OTRA AREA")) {
+            tieneInconsistencia = true;
+        }
+
+        // CONDICIÓN CRÍTICA DE FILTRADO: Si no tiene campo vacío Y tampoco tiene inconsistencia, se descarta.
+        if (!tieneCampoVacio && !tieneInconsistencia) return false;
+
+        // Filtro por Fechas
         if (dDesde && dHasta) {
             if (!t.fechaFin) return false;
             const parts = t.fechaFin.split(' ')[0].split(/[-/]/);
@@ -1275,17 +1304,18 @@ function generarReporteEnBlanco() {
     });
 
     if (casosEnBlanco.length === 0) {
-        container.innerHTML = `<div style="padding:15px; background:#d4edda; color:#155724; border-radius:5px;">✅ No se encontraron requerimientos incompletos para los filtros seleccionados.</div>`;
+        container.innerHTML = `<div style="padding:15px; background:#d4edda; color:#155724; border-radius:5px;">✅ No se encontraron requerimientos incompletos o con inconsistencias para los filtros seleccionados.</div>`;
         container.classList.remove('hidden');
         return;
     }
 
     let tablaHTML = `
-        <div style="padding:15px; background:#fff3cd; color:#856404; border-radius:5px; margin-bottom:15px;">⚠️ Se encontraron <b>${casosEnBlanco.length}</b> requerimientos sin información técnica completa.</div>
+        <div style="padding:15px; background:#fff3cd; color:#856404; border-radius:5px; margin-bottom:15px;">⚠️ Se encontraron <b>${casosEnBlanco.length}</b> requerimientos con omisiones técnicas o inconsistencias en Solución MDA.</div>
         <div style="overflow-x:auto;">
             <table id="tabla-en-blanco" style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; font-size: 11px;">
                 <thead style="background-color: #6c757d; color: white;">
                     <tr>
+                        
                         <th style="padding:8px; border:1px solid #ddd; text-align: left;">Proyecto</th>
                         <th style="padding:8px; border:1px solid #ddd; text-align: left; white-space: nowrap;">
                             Ticket 
@@ -1294,15 +1324,15 @@ function generarReporteEnBlanco() {
                             </button>
                         </th>
                         <th style="padding:8px; border:1px solid #ddd; text-align: left;">Grupo Resolutor</th>
-                        
                         <th style="padding:8px; border:1px solid #ddd; text-align: left; white-space: nowrap;">
                             Asignado A
                             <button onclick="copiarColumnaAsignadoBlanco()" title="Copiar solo Nombres" style="margin-left: 5px; padding: 2px 6px; font-size: 10px; background-color: #495057; color: white; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">
                                 <i class="fas fa-copy"></i>
                             </button>
                         </th>
-                        
+                        <th style="padding:8px; border:1px solid #ddd; text-align: left;">Finalizado Por</th>
                         <th style="padding:8px; border:1px solid #ddd; text-align: center;">Fecha Finalizado</th>
+                        <th style="padding:8px; border:1px solid #ddd; text-align: left;">Solución MDA</th>
                         <th style="padding:8px; border:1px solid #ddd; text-align: left;">Modelo Detectado</th>
                         <th style="padding:8px; border:1px solid #ddd; text-align: left;">Tipo Detectado</th>
                         <th style="padding:8px; border:1px solid #ddd; text-align: left;">Jurisdicción</th>
@@ -1330,15 +1360,48 @@ function generarReporteEnBlanco() {
         const jurShow = sinJurisdiccion ? `FALTA JURISDICCIÓN ${jurUpper === "GENERAL" ? '' : `("${t.jurisdiccion}")`}` : t.jurisdiccion;
         const depShow = sinDependencia ? "FALTA DEPENDENCIA" : t.dependencia;
 
-        const asignadoShow = t.AsignadoA || "-";
+      const formatNombrePropio = (str) => {
+            if (!str || str === "-") return "-";
+            return str.toLowerCase().trim().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+        };
+
+        // CORREGIDO: Ahora sí llamamos a la función para transformar el texto
+        const asignadoShow = formatNombrePropio(t.AsignadoA);
+        const finalizadoPorShow = formatNombrePropio(t.finalizadoPor);
+        const solucionShow = t.solucionMDARaw || "VACÍO / NO REGISTRADO";
+
+        // Marcado de inconsistencia para renderizado visual individual
+        const grupoUpper = t.grupo ? t.grupo.toUpperCase().trim() : "";
+        const solUpper = t.solucionMDARaw ? t.solucionMDARaw.toUpperCase().trim() : "";
+        let celdaInconsistente = false;
+
+        if (grupoUpper.includes("RESIDENTE") && !solUpper.includes("DERIVADO TERRENO")) {
+            celdaInconsistente = true;
+        } 
+        // CORREGIDO: Agregado el grupo SERVICIOS para evitar falsos errores visuales
+        else if (!grupoUpper.includes("RESIDENTE") && !grupoUpper.includes("SERVICIOS") && solUpper.includes("DERIVADO TERRENO")) {
+            celdaInconsistente = true;
+        } else if (grupoUpper.includes("SCO") && !solUpper.includes("DERIVADO SCO")) {
+            celdaInconsistente = true;
+        } else if ((grupoUpper.includes("OTRA AREA") || grupoUpper.includes("OTRA ÁREA")) && !solUpper.includes("DERIVADO OTRA AREA")) {
+            celdaInconsistente = true;
+        }
 
         tablaHTML += `
             <tr style="border-bottom: 1px solid #eee;">
                 <td style="padding:8px; border:1px solid #ddd; color: #014f8b; font-weight: bold;">${t.proyecto || "N/A"}</td>
                 <td style="padding:8px; border:1px solid #ddd;"><b>${t.num}</b></td>
                 <td style="padding:8px; border:1px solid #ddd;">${t.grupo}</td>
-                <td style="padding:8px; border:1px solid #ddd;">${asignadoShow}</td>
+                
+                <td style="padding:8px; border:1px solid #ddd; font-size: 12px;">${asignadoShow}</td>
+                <td style="padding:8px; border:1px solid #ddd; font-size: 12px;">${finalizadoPorShow}</td>
+                
                 <td style="padding:8px; border:1px solid #ddd; text-align: center;">${t.fechaFin}</td>
+                
+                <td style="padding:8px; border:1px solid #ddd; color: ${celdaInconsistente ? '#dc3545' : '#333'}; font-weight: ${celdaInconsistente ? 'bold' : 'normal'};">
+                    ${solucionShow} ${celdaInconsistente ? '⚠️' : ''}
+                </td>
+                
                 <td style="padding:8px; border:1px solid #ddd; color: ${sinModelo ? '#dc3545' : '#333'}; font-weight: ${sinModelo ? 'bold' : 'normal'};">${modeloShow}</td>
                 <td style="padding:8px; border:1px solid #ddd; color: ${sinTipo ? '#dc3545' : '#333'}; font-weight: ${sinTipo ? 'bold' : 'normal'};">${tipoShow}</td>
                 <td style="padding:8px; border:1px solid #ddd; color: ${sinJurisdiccion ? '#dc3545' : '#333'}; font-weight: ${sinJurisdiccion ? 'bold' : 'normal'};">${jurShow}</td>
@@ -2242,7 +2305,7 @@ function generarInformeMDA() {
         const contadoresFinales = {
             'Anulado no Contacto': 0, 'Anulado Usuario': 0, 'Solucionados en MDA': 0,
             'Derivado a Otra Área': 0, 'Derivado a SCO': 0, 'Derivado a Residencia': 0,
-            'Habilitacion x SCO': 0, 'No es Residencia': 0, 'Otros / Sin Clasificar': 0 
+            'Habilitacion x SCO': 0, 'No es Residencia': 0, 'Es Residencia': 0, 'Otros / Sin Clasificar': 0 
         };
 
         const contadoresResidencias = {
@@ -2278,6 +2341,7 @@ function generarInformeMDA() {
 
         window.ticketsOtrosMDA = []; 
         window.ticketsQAErrores = []; 
+        window.ticketsEsResidencia = [];
         window.ticketsSinJurisdiccion = []; // NUEVO
         window.ticketsSinFalla = []; // NUEVO
 
@@ -2343,10 +2407,31 @@ function generarInformeMDA() {
                     anioDetectado = parseInt(y); 
                 }
                 
-                const dependencia = cols[6] ? limpiarTexto(cols[6]) : ""; 
+              const dependencia = cols[6] ? limpiarTexto(cols[6]) : ""; 
                 const rawSolMDA = cols[14] ? cols[14].trim().toUpperCase() : ""; 
+                
+                // --- CAPTURA CON ÍNDICES REALES SEGÚN TU EXCEL ---
+                const grupoResolutorOriginal = cols[2] ? limpiarTexto(cols[2]) : "";  // Columna D (Índice 3)
+
                 let estadoMapped = MAPPING_SOLUCIONES_INFORME[rawSolMDA] || 'Otros / Sin Clasificar';
-                const esResidencia = (rawSolMDA === "DERIVADO TERRENO");
+                let esResidencia = (rawSolMDA === "DERIVADO TERRENO");
+
+                // --- NUEVA VALIDACIÓN CORREGIDA: BASADA EN DEPENDENCIAS DE RESIDENCIA ---
+                const esDependenciaDeResidencia = getCategoriaResidencia(dependencia) !== null;
+
+                if (
+                    esDependenciaDeResidencia && 
+                    grupoResolutorOriginal.includes("RESIDENTES") &&
+                    !rawSolMDA.includes("DERIVADO TERRENO")
+                ) {
+                    // Forzamos la clasificación al informe
+                    estadoMapped = 'Es Residencia';
+                    esResidencia = true;
+                    if (numTicket !== "") window.ticketsEsResidencia.push(numTicket);
+                    
+                    // Imprimimos en la consola para auditar en vivo que los capture con éxito
+                    console.log(`🎯 Ticket clasificado como 'Es Residencia': ${numTicket} | Dependencia: ${dependencia} | Solución CSV: ${rawSolMDA}`);
+                }
 
                 if (estadoMapped === 'Derivado a Residencia') {
                     if (!CATALOGO_RESIDENCIAS.includes(dependencia)) {
@@ -2519,20 +2604,25 @@ const totalAnuladosCorrecto = contadoresFinales['Anulado no Contacto'] + contado
         }
 
         // --- TABLA 1: ESTADOS ---
-        const ordenEstados = ['Anulado no Contacto', 'Anulado Usuario', 'Solucionados en MDA', 'Derivado a Otra Área', 'Derivado a SCO', 'Derivado a Residencia', 'Habilitacion x SCO', 'No es Residencia', 'Otros / Sin Clasificar'];
+        const ordenEstados = ['Anulado no Contacto', 'Anulado Usuario', 'Solucionados en MDA', 'Derivado a Otra Área', 'Derivado a SCO', 'Derivado a Residencia', 'Habilitacion x SCO', 'No es Residencia', 'Es Residencia', 'Otros / Sin Clasificar'];
         let rowsHTML = "";
         ordenEstados.forEach(estado => {
             const foliosCount = contadoresFinales[estado];
             if (estado === 'No es Residencia' && foliosCount === 0) return;
+            if (estado === 'Es Residencia' && foliosCount === 0) return;
+            if (estado === 'Otros / Sin Clasificar' && foliosCount === 0) return;
             const porcentaje = ((foliosCount / totalTicketsMesFiltro) * 100).toFixed(2); 
             const colorTexto = (estado.includes('Residencia') && estado === 'No es Residencia' || estado.includes('Otros')) && foliosCount > 0 ? '#dc3545' : '#333';
             const colorNegrita = (estado.includes('Residencia') && estado === 'No es Residencia' || estado.includes('Otros')) && foliosCount > 0 ? 'bold' : 'normal';
 
-            let botonCopiarInfo = "";
+           let botonCopiarInfo = "";
             if (estado === 'Otros / Sin Clasificar' && foliosCount > 0) {
                 botonCopiarInfo = `<button onclick="copiarArray(window.ticketsOtrosMDA)" class="btn-copy-small" style="background-color: #dc3545; color: white; border:none; border-radius:3px; padding:2px 6px; font-size:10px; cursor:pointer;"><i class="fas fa-copy"></i> Copiar TK</button>`;
             } else if (estado === 'No es Residencia' && foliosCount > 0) {
                 botonCopiarInfo = `<button onclick="copiarArray(window.ticketsQAErrores)" class="btn-copy-small" style="background-color: #ff8c00; color: white; border:none; border-radius:3px; padding:2px 6px; font-size:10px; cursor:pointer;"><i class="fas fa-search"></i> Auditar TK</button>`;
+            } else if (estado === 'Es Residencia' && foliosCount > 0) {
+                // --- NUEVO: BOTÓN DE COPIAR PARA "ES RESIDENCIA" ---
+                botonCopiarInfo = `<button onclick="copiarArray(window.ticketsEsResidencia)" class="btn-copy-small" style="background-color: #dc3545; color: white; border:none; border-radius:3px; padding:2px 6px; font-size:10px; cursor:pointer;"><i class="fas fa-copy"></i> Copiar TK</button>`;
             }
             rowsHTML += `<tr style="border-bottom: 1px solid #ddd; font-size: 13px;">
                 <td style="padding: 3px 10px; color: ${colorTexto}; font-weight: ${colorNegrita};">${estado} ${botonCopiarInfo}</td>
