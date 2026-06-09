@@ -6,8 +6,13 @@
     <title>Gestión SCO - Continuidad Operativa</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-   
- 
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script>
+        // Le indicamos al navegador dónde encontrar el núcleo de procesamiento en segundo plano
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    </script>
+    
 </head>
 <body>
 
@@ -332,6 +337,9 @@
                     <button class="tab-btn" onclick="switchReportTab('tab-antivirus', this)"><i class="fas fa-shield-alt"></i> Reporte Antivirus</button>
                     <button class="tab-btn" onclick="switchReportTab('tab-guias-pendientes', this)"><i class="fas fa-file-invoice"></i> Guías Pendientes</button>
                     <button class="tab-btn" onclick="switchReportTab('tab-en-blanco', this)" ><i class="fas fa-eraser"></i> TKs En blanco</button>
+                    <button class="tab-btn" onclick="switchReportTab('tab-medicion-sla', this); document.getElementById('tab-medicion-sla').classList.remove('hidden');">
+    <i class="fas fa-stopwatch"></i> Medición de SLA
+</button>
                     <button class="tab-btn" onclick="switchReportTab('tab-informe-mda', this)"><i class="fas fa-chart-pie"></i> Informe Mensual MDA</button>
                 </div>
 
@@ -406,7 +414,7 @@
                             <h5 style="color: #495057; margin: 0;"><i class="fas fa-file-invoice text-muted me-2"></i> Reporte de Requerimientos sin Rellenar</h5>
                             <span class="badge bg-secondary" style="font-size: 0.8rem; padding: 5px 10px; border-radius: 4px; background-color: #6c757d; color: white;">Auditoría Técnica</span>
                         </div>
-                        <p class="text-muted small">Este reporte identifica tickets finalizados donde el <strong>Tipo de Equipo</strong>, el <strong>Modelo</strong> o los <strong>Grupos Resolutores con la Solucion MDA</strong> no fueron registrados correctamente por el técnico MDA.</p>
+                        <p class="text-muted small">Este reporte identifica tickets finalizados donde el <strong>Tipo de Equipo</strong> o el <strong>Modelo</strong> no fueron registrados correctamente por el técnico.</p>
                         <div class="coord-row-inline" style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; border: 1px solid #ddd; margin-bottom: 15px;">
                             
                             <div class="input-group-small">
@@ -429,6 +437,29 @@
                         <div id="blanco-result-container" class="hidden mt-3" style="min-height: 100px;"></div>
                     </div>
                 </div>
+
+                           <div id="tab-medicion-sla" class="tab-content hidden">
+    
+    <div class="card" style="margin-bottom: 20px;">
+        <h4 style="color: #014f8b; margin-top: 0; margin-bottom: 15px; font-family: Arial, sans-serif; font-weight: bold;">
+            <i class="fas fa-file-pdf" style="margin-right: 8px;"></i> Medición SLA desde PDF Detallado
+        </h4>
+        <p style="margin-bottom: 15px; color: #555; font-size: 13px; font-family: Arial, sans-serif;">
+            Sube el archivo PDF del requerimiento en formato "Informe Detallado" para calcular la distribución de tiempos de atención.
+        </p>
+        
+        <div style="display: flex; gap: 15px; align-items: center;">
+            <input type="file" id="sla-pdf-file" accept=".pdf" style="padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;">
+            <button onclick="procesarPdfSLA()" class="btn-primary" style="background: #014f8b; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">
+                <i class="fas fa-sync-alt"></i> Analizar SLA
+            </button>
+        </div>
+    </div>
+
+    <div id="sla-result-container" class="hidden"></div>
+
+</div>
+
 
                 <div id="tab-informe-mda" class="tab-content hidden-content">
                     <div class="card p-4 shadow-sm" style="border-top: 4px solid #17a2b8; border-radius: 8px;">
