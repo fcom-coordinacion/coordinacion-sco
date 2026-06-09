@@ -1051,7 +1051,7 @@ function generarInformativoTecnico() {
     const container = document.getElementById('info-result-container');
     const asunto = `Informativo Técnico - Actividades Coordinadas SCO PJUD`;
     const para = "j.santos@fcom.cl";
-    const cc = "c.zapata@fcom.cl;j.sanhueza@fcom.cl; e.suarez@fcom.cl; e.socorro@fcom.cl; juan.diaz@fcom.cl; jchavez_hp@pjud.cl; s.guzman@fcom.cl; jmarrufo_hp@pjud.cl; f.solar@fcom.cl; svaldivieso_hp@pjud.cl; myabrudez_fcom@pjud.cl; j.riffo@fcom.cl; a.vacca@fcom.cl";
+    const cc = "c.zapata@fcom.cl;j.sanhueza@fcom.cl; e.suarez@fcom.cl; e.socorro@fcom.cl; l.torres@fcom.cl; juan.diaz@fcom.cl; sandrade_fcom@pjud.cl; jchavez_hp@pjud.cl; s.guzman@fcom.cl; jmarrufo_hp@pjud.cl; f.solar@fcom.cl; svaldivieso_hp@pjud.cl; myabrudez_fcom@pjud.cl; j.riffo@fcom.cl; a.vacca@fcom.cl";
 
     const hoy = new Date();
     const diaObjetivo = new Date(hoy);
@@ -3957,3 +3957,289 @@ function toggleSection(bodyId, iconId) {
     }
 }
 
+async function procesarPdfSLA() {
+    const fileInput = document.getElementById('sla-pdf-file');
+    const container = document.getElementById('sla-result-container');
+
+    if (!fileInput.files || fileInput.files.length === 0) {
+        return showToast("⚠️ Por favor, selecciona un archivo PDF.");
+    }
+
+    const GEMINI_API_KEY = "AQ.Ab8RN6JXThJ06PaRHbhqLOadziyetNnzTBUoF6M6zgL9uq1Eaw"; 
+    const file = fileInput.files[0];
+    const reader = new FileReader();
+
+    reader.onload = async function(e) {
+        try {
+            // --- 1. ACTIVAR ICONO DE CARGA (SPINNER GIRATORIO) ---
+            container.classList.remove('hidden');
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px; font-family: Arial, sans-serif;">
+                    <div class="sla-spinner" style="
+                        border: 4px solid rgba(0, 0, 0, 0.1);
+                        width: 42px;
+                        height: 42px;
+                        border-radius: 50%;
+                        border-left-color: #014f8b;
+                        animation: spin 0.8s linear infinite;
+                        margin: 0 auto 15px auto;
+                    "></div>
+                    <p style="color: #2c3e50; font-size: 13px; font-weight: bold; margin: 0;">
+                        🧠 Estructurando historial con IA...
+                    </p>
+                    <small style="color: #7f8c8d; font-size: 11px;">Calculando tramos operacionales y matriz de SLA.</small>
+                </div>
+                <style>
+                    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                </style>
+            `;
+
+            const typedarray = new Uint8Array(e.target.result);
+            const pdfjsInstance = window['pdfjs-dist/build/pdf'] || window.pdfjsLib;
+            if (!pdfjsInstance) return showToast("❌ Error: Librería PDF.js no encontrada.");
+
+            const pdf = await pdfjsInstance.getDocument(typedarray).promise;
+            let paginasTexto = [];
+
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                let textoPagina = textContent.items.map(item => item.str).join(" ");
+                paginasTexto.push(textoPagina + "\n");
+            }
+
+            let textoCompletoPDF = paginasTexto.join(" ");
+            textoCompletoPDF = textoCompletoPDF.replace(/[\x00-\x1F\x7F-\x9F]/g, " ");
+            textoCompletoPDF = textoCompletoPDF.replace(/\s+/g, ' ').trim();
+
+            if (!textoCompletoPDF.toUpperCase().includes("INFORME DETALLADO DE REQUERIMIENTO")) {
+                container.classList.add('hidden');
+                return showToast("❌ Formato no válido. Debe ser un Informe Detallado.");
+            }
+
+            // Prompt de carga ultra-ligera (Evita saturar la cuota de datos)
+            const promptEstructura = {
+                contents: [{
+                    parts: [{
+                        text: `Extrae la bitácora cronológica del siguiente ticket de Mesa de Ayuda. Devolver estrictamente JSON estructurado.
+                        Campos obligatorios:
+                        - folio
+                        - requerimiento
+                        - bitacora: arreglo de objetos con [fecha, hora, responsable, tipo ('NORMAL' o 'PLANEADO')]
+                        
+                        Texto: ${textoCompletoPDF}`
+                    }]
+                }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            folio: { type: "STRING" },
+                            requerimiento: { type: "STRING" },
+                            bitacora: {
+                                type: "ARRAY",
+                                items: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        fecha: { type: "STRING" },
+                                        hora: { type: "STRING" },
+                                        responsable: { type: "STRING" },
+                                        tipo: { type: "STRING" }
+                                    },
+                                    required: ["fecha", "hora", "responsable", "tipo"]
+                                }
+                            }
+                        },
+                        required: ["folio", "requerimiento", "bitacora"]
+                    }
+                }
+            };
+
+            // --- CORRECCIÓN DE ENDPOINT: RETORNO SEGURO A v1beta CON GEMINI 2.5 ---
+            const urlAPI = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+            
+            let response = await fetch(urlAPI, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(promptEstructura)
+            });
+
+            if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+
+            const data = await response.json();
+            let rawText = data.candidates[0].content.parts[0].text.trim();
+            
+            if (rawText.includes("```")) {
+                rawText = rawText.replace(/```json|```/gi, "").trim();
+            }
+            rawText = rawText.replace(/[\u0000-\u0019]+/g, ""); 
+
+            const datosIA = JSON.parse(rawText);
+
+            datosIA.bitacora = datosIA.bitacora.map(item => {
+                return {
+                    fecha: item.fecha || "01-01-2026",
+                    hora: item.hora || "00:00:00",
+                    responsable: item.responsable ? item.responsable.trim() : "DESCONOCIDO",
+                    tipo: item.tipo ? item.tipo.toUpperCase().trim() : "NORMAL"
+                };
+            });
+
+            // --- REGLAS DE NEGOCIO CORPORATIVAS DE FILTRADO ---
+            const matrizActores = {
+                "JOSE ANDRES MARRUFO RAMOS": "MDA PJUD4", "MATÍAS MANUEL GAJARDO RIQUELME": "MDA PJUD4",
+                "EDUARDO IGNACIO MORA HENRÍQUEZ": "MDA PJUD4", "CRISTIAN JAVIER LARA FLORES": "MDA PJUD4",
+                "BASTIÁN FRANCISCO VALDOVINOS VALENZUELA": "Residentes PJUD4",
+                "SILVIA MARIA VALBUENA NAVARRO": "SCO", "SUSANA ANDREA GUZMAN ARROYO": "SCO",
+                "CLAUDIO ANDRÉS FUENTES VENEGAS": "Logistica",
+                "BENJAMÍN ANDRÉS IGNACIO LOYOLA SILVA": "MDA PJUD5", "ANGELICA MARÍA VACCA FUENMAYOR": "MDA PJUD5",
+                "FERNANDO DANIEL ALONSO VARAS CÁDIZ": "MDA PJUD5", "ENRIQUE ANDRÉS GONZÁLEZ VENEGAS": "MDA PJUD5",
+                "DIEGO IGNACIO LARA CARREÑO": "MDA PJUD5", "BASTIÁN IGNACIO MEDINA GAJARDO": "MDA PJUD5",
+                "SERGIO SEBASTIÁN VALDIVIESO ROMÁN": "Residentes PJUD5"
+            };
+
+            datosIA.bitacora.sort((a, b) => {
+                return new Date(`${a.fecha.split('-').reverse().join('-')}T${a.hora}`) - new Date(`${b.fecha.split('-').reverse().join('-')}T${b.hora}`);
+            });
+
+            function calcularMinutosHabiles(inicio, fin, grupo) {
+                let mins = 0;
+                let current = new Date(inicio.getTime());
+                const hInicio = grupo === "PJUD5" ? 8 : 7;
+                const mInicio = grupo === "PJUD5" ? 0 : 30;
+
+                while (current < fin) {
+                    const dia = current.getDay(); 
+                    const hora = current.getHours();
+                    const min = current.getMinutes();
+
+                    if (dia !== 0) { 
+                        let esHabil = false;
+                        if (dia >= 1 && dia <= 5) {
+                            if ((hora > hInicio || (hora === hInicio && min >= mInicio)) && (hora < 17)) esHabil = true;
+                        } else if (dia === 6) {
+                            if ((hora > hInicio || (hora === hInicio && min >= mInicio)) && (hora < 14)) esHabil = true;
+                        }
+                        if (esHabil) mins++;
+                    }
+                    current.setMinutes(current.getMinutes() + 1);
+                }
+                return mins;
+            }
+
+            function formatearHorasComa(minutos) {
+                const dec = (minutos / 60).toFixed(2).replace('.', ',');
+                return `${minutos} minutos (equivalente a ${dec} horas)`;
+            }
+
+            let htmlCronologia = "";
+            let resumenAreas = {};
+            let totalSLA = 0, totalPausas = 0, totalReal = 0;
+
+            Object.values(matrizActores).concat(["Otra Área"]).forEach(a => {
+                resumenAreas[a] = { activo: 0, pausa: 0 };
+            });
+
+            for (let k = 0; k < datosIA.bitacora.length - 1; k++) {
+                const act = datosIA.bitacora[k];
+                const prox = datosIA.bitacora[k + 1];
+
+                const t1 = new Date(`${act.fecha.split('-').reverse().join('-')}T${act.hora}`);
+                const t2 = new Date(`${prox.fecha.split('-').reverse().join('-')}T${prox.hora}`);
+
+                const respUpper = act.responsable.toUpperCase().trim();
+                const area = matrizActores[respUpper] || "Otra Área";
+                const grupo = (["MDA PJUD4", "Residentes PJUD4", "SCO", "Logistica"].includes(area)) ? "PJUD4" : "PJUD5";
+
+                let minutosTramo = calcularMinutosHabiles(t1, t2, grupo);
+                
+                let condicion = "ACTIVA";
+                if (area === "Otra Área") {
+                    condicion = "EXCLUIDA por Otra Área";
+                    totalPausas += minutosTramo;
+                    resumenAreas[area].pausa += minutosTramo;
+                } else if (act.tipo === "PLANEADO") {
+                    condicion = "PAUSADA por Planeado";
+                    totalPausas += minutosTramo;
+                    resumenAreas[area].pausa += minutosTramo;
+                } else {
+                    totalReal += minutosTramo;
+                    resumenAreas[area].activo += minutosTramo;
+                }
+                totalSLA += minutosTramo;
+
+                htmlCronologia += `
+                    <li>
+                        <b>${act.fecha} ${act.hora} al ${prox.fecha} ${prox.hora}:</b> 
+                        ${act.responsable} (${area}) mantuvo el requerimiento de forma <b>${condicion}</b>. 
+                        Consumo de SLA: ${formatearHorasComa(minutosTramo)}.
+                    </li>`;
+            }
+
+            let htmlTablaFilas = "";
+            Object.keys(resumenAreas).forEach(area => {
+                if (resumenAreas[area].activo > 0 || resumenAreas[area].pausa > 0) {
+                    htmlTablaFilas += `
+                        <tr>
+                            <td><b>${area}</b></td>
+                            <td>Gestión de Continuidad</td>
+                            <td>${resumenAreas[area].activo} min (equivalente a ${(resumenAreas[area].activo/60).toFixed(2).replace('.', ',')} h)</td>
+                            <td>${resumenAreas[area].pausa} min (equivalente a ${(resumenAreas[area].pausa/60).toFixed(2).replace('.', ',')} h)</td>
+                        </tr>`;
+                }
+            });
+
+            // --- INYECCIÓN FINAL DEL REPORTE ---
+            container.innerHTML = `
+                <h2>Resumen del Ticket</h2>
+                <ul>
+                    <li><b>Folio / ID:</b> ${datosIA.folio || 'Desconocido'}</li>
+                    <li><b>Fecha Creación:</b> ${datosIA.bitacora[0].fecha} ${datosIA.bitacora[0].hora}</li>
+                    <li><b>Fecha Cierre/Último Estado:</b> ${datosIA.bitacora[datosIA.bitacora.length-1].fecha} ${datosIA.bitacora[datosIA.bitacora.length-1].hora}</li>
+                </ul>
+
+                <h2>Cronología Detallada y Personalizada del SLA</h2>
+                <ul style="line-height:1.8; font-family:Arial; font-size:12px; color:#333; margin-bottom:25px;">
+                    ${htmlCronologia}
+                </ul>
+
+                <h2>Resumen de SLA Consumido por Área y Responsable</h2>
+                <table id="tabla-guias-pendientes" style="width:100%; margin-bottom:20px;">
+                    <thead>
+                        <tr>
+                            <th>Área</th>
+                            <th>Responsable de Tramo</th>
+                            <th>Tiempo SLA Activo (Conteo)</th>
+                            <th>Tiempo de Pausa (Planeado)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${htmlTablaFilas}
+                        <tr style="background:#f1f5f9; font-weight:bold;">
+                            <td>TOTAL GENERAL</td>
+                            <td>-</td>
+                            <td>${formatearHorasComa(totalReal)}</td>
+                            <td>${formatearHorasComa(totalPausas)}</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h2>Resultados Globales del SLA</h2>
+                <ul>
+                    <li><b>Tiempo de Solución Total:</b> ${totalSLA} minutos hábiles (equivalente a ${Math.floor(totalSLA/60)} horas y ${totalSLA%60} minutos).</li>
+                    <li><b>Total Tiempo Descontado (Pausas + Otra Área):</b> ${totalPausas} minutes hábiles (equivalente a ${Math.floor(totalPausas/60)} horas y ${totalPausas%60} minutos).</li>
+                    <li><b>Tiempo de Solución Real Neto:</b> ${totalReal} minutos hábiles (equivalente a ${Math.floor(totalReal/60)} horas y ${totalReal%60} minutos).</li>
+                </ul>
+            `;
+
+            showToast("✅ Análisis procesado con éxito.");
+
+        } catch (err) {
+            console.error(err);
+            container.innerHTML = `<div style="color:red; padding:20px; font-family:Arial;">❌ Error General: ${err.message}.</div>`;
+            showToast(`❌ Error de Procesamiento: ${err.message}`);
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
