@@ -3985,7 +3985,7 @@ async function procesarPdfSLA() {
                         margin: 0 auto 15px auto;
                     "></div>
                     <p style="color: #2c3e50; font-size: 13px; font-weight: bold; margin: 0;">
-                        🧠 Inteligencia Artificial estructurando historial multipágina...
+                        🧠 Estructurando historial de Requerimiento...
                     </p>
                     <small style="color: #7f8c8d; font-size: 11px;">Mapeando áreas y recopilando nombres de actores involucrados.</small>
                 </div>
