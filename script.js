@@ -4154,19 +4154,30 @@ async function procesarPdfSLA() {
 
                 let minutosTramo = calcularMinutosHabiles(t1, t2, grupo);
                 
-                let condicion = "ACTIVA";
-                if (area === "Otra Área") {
-                    condicion = "EXCLUIDA por Otra Área";
-                    totalPausas += minutosTramo;
-                    resumenAreas[area].pausa += minutosTramo;
-                } else if (act.tipo === "PLANEADO") {
-                    condicion = "PAUSADA por Planeado";
-                    totalPausas += minutosTramo;
-                    resumenAreas[area].pausa += minutosTramo;
-                } else {
-                    totalReal += minutosTramo;
-                    resumenAreas[area].activo += minutosTramo;
-                }
+                // =========================================================================
+// PARTE MODIFICADA: Identificación de la Brecha de Objeción en cada tramo
+// =========================================================================
+let condicion = "ACTIVA";
+
+if (act.tipo === "SOLUCIONADO") {
+    // Si el estado de origen es Solucionado, el reloj se detiene automáticamente
+    // tratando todo el tiempo hasta el próximo hito (Objeción) como tiempo muerto.
+    condicion = "EXCLUIDA por Brecha de Objeción";
+    totalPausas += minutosTramo;
+    resumenAreas[area].pausa += minutosTramo;
+} else if (area === "Otra Área") {
+    condicion = "EXCLUIDA por Otra Área";
+    totalPausas += minutosTramo;
+    resumenAreas[area].pausa += minutosTramo;
+} else if (act.tipo === "PLANEADO") {
+    condicion = "PAUSADA por Planeado";
+    totalPausas += minutosTramo;
+    resumenAreas[area].pausa += minutosTramo;
+} else {
+    condicion = "ACTIVA";
+    totalReal += minutosTramo;
+    resumenAreas[area].activo += minutosTramo;
+}
                 totalSLA += minutosTramo;
 
                 htmlCronologia += `
