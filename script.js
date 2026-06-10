@@ -4323,7 +4323,7 @@ htmlCronologia += `
                             <small><i class="far fa-hourglass"></i> ${Math.floor(totalSLA/60)}h ${totalSLA%60}m</small>
                         </div>
                         <div class="sla-global-card">
-                            <span>Total Descontado (Pausas)</span>
+                            <span>Total Descontado (Planeado - Objetado - Otra Área)</span>
                             <var>${totalPausas} Minutos</var>
                             <small><i class="fas fa-minus-circle"></i> ${Math.floor(totalPausas/60)}h ${totalPausas%60}m</small>
                         </div>
