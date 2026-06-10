@@ -3971,7 +3971,7 @@ async function procesarPdfSLA() {
 
     reader.onload = async function(e) {
         try {
-            // --- 1. ACTIVAR ICONO DE CARGA (SPINNER GIRATORIO) ---
+            // --- 1. SPINNER VISUAL DE PROCESAMIENTO ACTIVO ---
             container.classList.remove('hidden');
             container.innerHTML = `
                 <div style="text-align: center; padding: 40px; font-family: Arial, sans-serif;">
@@ -3985,9 +3985,9 @@ async function procesarPdfSLA() {
                         margin: 0 auto 15px auto;
                     "></div>
                     <p style="color: #2c3e50; font-size: 13px; font-weight: bold; margin: 0;">
-                        🧠 Estructurando historial con IA...
+                        🧠 Inteligencia Artificial estructurando historial multipágina...
                     </p>
-                    <small style="color: #7f8c8d; font-size: 11px;">Calculando tramos operacionales y matriz de SLA.</small>
+                    <small style="color: #7f8c8d; font-size: 11px;">Mapeando áreas y recopilando nombres de actores involucrados.</small>
                 </div>
                 <style>
                     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -4017,7 +4017,6 @@ async function procesarPdfSLA() {
                 return showToast("❌ Formato no válido. Debe ser un Informe Detallado.");
             }
 
-            // Prompt de carga ultra-ligera (Evita saturar la cuota de datos)
             const promptEstructura = {
                 contents: [{
                     parts: [{
@@ -4025,7 +4024,9 @@ async function procesarPdfSLA() {
                         Campos obligatorios:
                         - folio
                         - requerimiento
-                        - bitacora: arreglo de objetos con [fecha, hora, responsable, tipo ('NORMAL' o 'PLANEADO')]
+                        - bitacora: arreglo de objetos con [fecha, hora, responsable, tipo ('NORMAL', 'PLANEADO' o 'SOLUCIONADO')]
+                        
+                        Nota crítica: Si el estado del hito indica que el requerimiento fue Solucionado o Cerrado, marca el campo tipo estrictamente como 'SOLUCIONADO'.
                         
                         Texto: ${textoCompletoPDF}`
                     }]
@@ -4056,23 +4057,34 @@ async function procesarPdfSLA() {
                 }
             };
 
-            // --- CORRECCIÓN DE ENDPOINT: RETORNO SEGURO A v1beta CON GEMINI 2.5 ---
             const urlAPI = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
             
-            let response = await fetch(urlAPI, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(promptEstructura)
-            });
+            let response;
+            let intentos = 0;
+            let maxIntentos = 4;
+            let exitoPeticion = false;
+
+            while (intentos < maxIntentos && !exitoPeticion) {
+                response = await fetch(urlAPI, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(promptEstructura)
+                });
+
+                if (response.status === 429) {
+                    intentos++;
+                    let tiempoEspera = intentos * 4000;
+                    await new Promise(resolve => setTimeout(resolve, tiempoEspera));
+                } else {
+                    exitoPeticion = true;
+                }
+            }
 
             if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
 
             const data = await response.json();
             let rawText = data.candidates[0].content.parts[0].text.trim();
-            
-            if (rawText.includes("```")) {
-                rawText = rawText.replace(/```json|```/gi, "").trim();
-            }
+            if (rawText.includes("```")) rawText = rawText.replace(/```json|```/gi, "").trim();
             rawText = rawText.replace(/[\u0000-\u0019]+/g, ""); 
 
             const datosIA = JSON.parse(rawText);
@@ -4086,7 +4098,7 @@ async function procesarPdfSLA() {
                 };
             });
 
-            // --- REGLAS DE NEGOCIO CORPORATIVAS DE FILTRADO ---
+            // --- REGLAS DE NEGOCIO CORPORATIVAS ---
             const matrizActores = {
                 "JOSE ANDRES MARRUFO RAMOS": "MDA PJUD4", "MATÍAS MANUEL GAJARDO RIQUELME": "MDA PJUD4",
                 "EDUARDO IGNACIO MORA HENRÍQUEZ": "MDA PJUD4", "CRISTIAN JAVIER LARA FLORES": "MDA PJUD4",
@@ -4137,8 +4149,10 @@ async function procesarPdfSLA() {
             let resumenAreas = {};
             let totalSLA = 0, totalPausas = 0, totalReal = 0;
 
-            Object.values(matrizActores).concat(["Otra Área"]).forEach(a => {
-                resumenAreas[a] = { activo: 0, pausa: 0 };
+            // --- ESTRUCTURA MODIFICADA: INICIALIZAR ARREGLO DE ACTORES ÚNICOS ---
+            const listadoAreasUnicas = ["MDA PJUD4", "Residentes PJUD4", "SCO", "Logistica", "MDA PJUD5", "Residentes PJUD5", "Otra Área"];
+            listadoAreasUnicas.forEach(a => {
+                resumenAreas[a] = { activo: 0, pausa: 0, actores: [] };
             });
 
             for (let k = 0; k < datosIA.bitacora.length - 1; k++) {
@@ -4153,102 +4167,181 @@ async function procesarPdfSLA() {
                 const grupo = (["MDA PJUD4", "Residentes PJUD4", "SCO", "Logistica"].includes(area)) ? "PJUD4" : "PJUD5";
 
                 let minutosTramo = calcularMinutosHabiles(t1, t2, grupo);
+                let condicion = "ACTIVA";
                 
-                // =========================================================================
-// PARTE MODIFICADA: Identificación de la Brecha de Objeción en cada tramo
-// =========================================================================
-let condicion = "ACTIVA";
-
-if (act.tipo === "SOLUCIONADO") {
-    // Si el estado de origen es Solucionado, el reloj se detiene automáticamente
-    // tratando todo el tiempo hasta el próximo hito (Objeción) como tiempo muerto.
-    condicion = "EXCLUIDA por Brecha de Objeción";
-    totalPausas += minutosTramo;
-    resumenAreas[area].pausa += minutosTramo;
-} else if (area === "Otra Área") {
-    condicion = "EXCLUIDA por Otra Área";
-    totalPausas += minutosTramo;
-    resumenAreas[area].pausa += minutosTramo;
-} else if (act.tipo === "PLANEADO") {
-    condicion = "PAUSADA por Planeado";
-    totalPausas += minutosTramo;
-    resumenAreas[area].pausa += minutosTramo;
-} else {
-    condicion = "ACTIVA";
-    totalReal += minutosTramo;
-    resumenAreas[area].activo += minutosTramo;
-}
+                if (act.tipo === "SOLUCIONADO") {
+                    condicion = "EXCLUIDA por Brecha de Objeción";
+                    totalPausas += minutosTramo;
+                    resumenAreas[area].pausa += minutosTramo;
+                } else if (area === "Otra Área") {
+                    condicion = "EXCLUIDA por Otra Área";
+                    totalPausas += minutosTramo;
+                    resumenAreas[area].pausa += minutosTramo;
+                } else if (act.tipo === "PLANEADO") {
+                    condicion = "PAUSADA por Planeado";
+                    totalPausas += minutosTramo;
+                    resumenAreas[area].pausa += minutosTramo;
+                } else {
+                    condicion = "ACTIVA";
+                    totalReal += minutosTramo;
+                    resumenAreas[area].activo += minutosTramo;
+                }
                 totalSLA += minutosTramo;
 
-                htmlCronologia += `
-                    <li>
-                        <b>${act.fecha} ${act.hora} al ${prox.fecha} ${prox.hora}:</b> 
-                        ${act.responsable} (${area}) mantuvo el requerimiento de forma <b>${condicion}</b>. 
-                        Consumo de SLA: ${formatearHorasComa(minutosTramo)}.
-                    </li>`;
+                // RECOPILACIÓN ASOCIATIVA DE ACTORES EN LA FILA CORRESPONDIENTE
+                if (act.responsable && act.responsable !== "DESCONOCIDO") {
+                    // Formatear estéticamente el nombre (Ej: Cristian Javier Lara Flores)
+                    const nombreFormateado = act.responsable.replace(/\s+/g, ' ').trim();
+                    if (!resumenAreas[area].actores.includes(nombreFormateado)) {
+                        resumenAreas[area].actores.push(nombreFormateado);
+                    }
+                }
+
+                // Busca esta porción dentro de tu bucle for y déjala mapeada así:
+let claseItem = "activa";
+if (condicion.includes("Objeción") || condicion.includes("Otra Área")) claseItem = "excluida";
+else if (condicion.includes("Planeado")) claseItem = "pausada";
+
+htmlCronologia += `
+    <li class="sla-timeline-item ${claseItem}">
+        <span class="sla-time-badge">${act.fecha} ${act.hora}</span> al <b>${prox.fecha} ${prox.prox_hora || prox.hora}</b><br>
+        El requerimiento estuvo asignado a <b>${act.responsable}</b> (<code>${area}</code>) en modalidad <span style="font-weight:bold;">${condicion}</span>.<br>
+        <span style="color:#555;">Subtotal consumido: ${formatearHorasComa(minutosTramo)}.</span>
+    </li>`;
             }
 
+            // --- DISEÑO DE LAS FILAS DE LA TABLA CON COMPILACIÓN DE ACTORES (SLASHEADOS) ---
             let htmlTablaFilas = "";
             Object.keys(resumenAreas).forEach(area => {
                 if (resumenAreas[area].activo > 0 || resumenAreas[area].pausa > 0) {
+                    
+                    // Si el área compiló actores, los une usando " / ", de lo contrario muestra un guion descriptivo
+                    let cadenaActores = resumenAreas[area].actores.length > 0 
+                        ? resumenAreas[area].actores.join(" / ") 
+                        : "Sistema Automatizado";
+
                     htmlTablaFilas += `
                         <tr>
                             <td><b>${area}</b></td>
-                            <td>Gestión de Continuidad</td>
+                            <td style="font-size: 11px; color: #444; max-width: 250px; word-wrap: break-word;">${cadenaActores}</td>
                             <td>${resumenAreas[area].activo} min (equivalente a ${(resumenAreas[area].activo/60).toFixed(2).replace('.', ',')} h)</td>
                             <td>${resumenAreas[area].pausa} min (equivalente a ${(resumenAreas[area].pausa/60).toFixed(2).replace('.', ',')} h)</td>
                         </tr>`;
                 }
             });
 
-            // --- INYECCIÓN FINAL DEL REPORTE ---
+            // --- INYECCIÓN DE INTERFAZ EN FORMATO GRANDE (MÁXIMA LEGIBILIDAD) ---
             container.innerHTML = `
-                <h2>Resumen del Ticket</h2>
-                <ul>
-                    <li><b>Folio / ID:</b> ${datosIA.folio || 'Desconocido'}</li>
-                    <li><b>Fecha Creación:</b> ${datosIA.bitacora[0].fecha} ${datosIA.bitacora[0].hora}</li>
-                    <li><b>Fecha Cierre/Último Estado:</b> ${datosIA.bitacora[datosIA.bitacora.length-1].fecha} ${datosIA.bitacora[datosIA.bitacora.length-1].hora}</li>
-                </ul>
+                <style>
+                    .sla-card-container { font-family: 'Segoe UI', Arial, sans-serif; color: #2c3e50; margin-bottom: 30px; }
+                    .sla-section-title { font-size: 17px; font-weight: bold; color: #014f8b; margin: 30px 0 15px 0; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+                    
+                    /* Tarjeta de Resumen Base */
+                    .sla-summary-box { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex; gap: 35px; flex-wrap: wrap; }
+                    .sla-summary-item { font-size: 14px; min-width: 180px; }
+                    .sla-summary-item b { color: #4a5568; display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+                    
+                    /* Línea de Tiempo Estilizada */
+                    .sla-timeline { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 25px; list-style: none; margin: 0 0 30px 0; }
+                    .sla-timeline-item { position: relative; padding-left: 30px; margin-bottom: 20px; font-size: 14px; line-height: 1.7; border-left: 2px solid #cbd5e1; }
+                    .sla-timeline-item::before { content: ''; position: absolute; left: -6px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: #94a3b8; border: 2px solid #ffffff; }
+                    .sla-timeline-item:last-child { margin-bottom: 0; }
+                    .sla-timeline-item.activa { border-left-color: #014f8b; }
+                    .sla-timeline-item.activa::before { background: #014f8b; }
+                    .sla-timeline-item.pausada { border-left-color: #b48b02; }
+                    .sla-timeline-item.pausada::before { background: #b48b02; }
+                    .sla-timeline-item.excluida { border-left-color: #64748b; }
+                    .sla-timeline-item.excluida::before { background: #64748b; }
+                    .sla-time-badge { background: #e2e8f0; color: #475569; padding: 3px 8px; border-radius: 4px; font-size: 12.5px; font-weight: bold; font-family: monospace; display: inline-block; margin-bottom: 4px; }
+                    
+                    /* Tabla de Asignaciones Homologada */
+                    .sla-table { width: 100%; border-collapse: collapse; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; font-size: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+                    .sla-table th { background-color: #014f8b; color: #ffffff; text-align: left; padding: 12px 16px; font-weight: bold; font-size: 13.5px; letter-spacing: 0.5px; }
+                    .sla-table td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; color: #334155; line-height: 1.5; }
+                    .sla-table tr:hover { background-color: #f8fafc; }
+                    .sla-table tr.total-row { background: #f1f5f9; font-weight: bold; color: #0f172a; }
+                    .sla-table tr.total-row td { border-top: 2px solid #cbd5e1; color: #0f172a; font-size: 14.5px; }
+                    
+                    /* Bloque de Resultados Globales */
+                    .sla-global-results { background: #fffbeb; border: 1px solid #fef3c7; border-radius: 8px; padding: 20px; margin-top: 30px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+                    .sla-global-card { text-align: center; padding: 5px; }
+                    .sla-global-card span { display: block; font-size: 12px; font-weight: bold; color: #b48b02; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px; }
+                    .sla-global-card var { font-style: normal; font-size: 18px; font-weight: bold; color: #78350f; display: block; }
+                    .sla-global-card small { color: #92400e; font-size: 13px; display: block; margin-top: 4px; font-weight: 500; }
+                    .sla-global-card.neto-destacado span { color: #014f8b; }
+                    .sla-global-card.neto-destacado var { color: #1e3a8a; font-size: 20px; }
+                    .sla-global-card.neto-destacado small { color: #1e40af; }
 
-                <h2>Cronología Detallada y Personalizada del SLA</h2>
-                <ul style="line-height:1.8; font-family:Arial; font-size:12px; color:#333; margin-bottom:25px;">
-                    ${htmlCronologia}
-                </ul>
+                    /* Adaptación para pantallas medianas */
+                    @media (max-width: 768px) {
+                        .sla-global-results { grid-template-columns: 1fr; gap: 15px; }
+                        .sla-summary-box { gap: 15px; }
+                    }
+                </style>
 
-                <h2>Resumen de SLA Consumido por Área y Responsable</h2>
-                <table id="tabla-guias-pendientes" style="width:100%; margin-bottom:20px;">
-                    <thead>
-                        <tr>
-                            <th>Área</th>
-                            <th>Responsable de Tramo</th>
-                            <th>Tiempo SLA Activo (Conteo)</th>
-                            <th>Tiempo de Pausa (Planeado)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${htmlTablaFilas}
-                        <tr style="background:#f1f5f9; font-weight:bold;">
-                            <td>TOTAL GENERAL</td>
-                            <td>-</td>
-                            <td>${formatearHorasComa(totalReal)}</td>
-                            <td>${formatearHorasComa(totalPausas)}</td>
-                        </tr>
-                    </tbody>
-                </table>
+                <div class="sla-card-container">
+                    
+                    <div class="sla-section-title"><i class="fas fa-ticket-alt"></i> Resumen del Ticket</div>
+                    <div class="sla-summary-box">
+                        <div class="sla-summary-item"><b>Folio / ID</b><i class="fas fa-hashtag" style="color:#a0aec0; margin-right:6px;"></i> ${datosIA.folio || 'Desconocido'}</div>
+                        <div class="sla-summary-item"><b>Elemento de Requerimiento</b><i class="fas fa-desktop" style="color:#a0aec0; margin-right:6px;"></i> ${datosIA.requerimiento || 'No Especificado'}</div>
+                        <div class="sla-summary-item"><b>Fecha Apertura</b><i class="far fa-calendar-alt" style="color:#a0aec0; margin-right:6px;"></i> ${datosIA.bitacora[0].fecha} ${datosIA.bitacora[0].hora}</div>
+                        <div class="sla-summary-item"><b>Corte Evaluado</b><i class="far fa-clock" style="color:#a0aec0; margin-right:6px;"></i> ${datosIA.bitacora[datosIA.bitacora.length-1].fecha} ${datosIA.bitacora[datosIA.bitacora.length-1].hora}</div>
+                    </div>
 
-                <h2>Resultados Globales del SLA</h2>
-                <ul>
-                    <li><b>Tiempo de Solución Total:</b> ${totalSLA} minutos hábiles (equivalente a ${Math.floor(totalSLA/60)} horas y ${totalSLA%60} minutos).</li>
-                    <li><b>Total Tiempo Descontado (Pausas + Otra Área):</b> ${totalPausas} minutes hábiles (equivalente a ${Math.floor(totalPausas/60)} horas y ${totalPausas%60} minutos).</li>
-                    <li><b>Tiempo de Solución Real Neto:</b> ${totalReal} minutos hábiles (equivalente a ${Math.floor(totalReal/60)} horas y ${totalReal%60} minutos).</li>
-                </ul>
+                    <div class="sla-section-title"><i class="fas fa-history"></i> Cronología Detallada del Ciclo de Vida (SLA)</div>
+                    <ul class="sla-timeline">
+                        ${htmlCronologia} 
+                    </ul>
+
+                    <div class="sla-section-title"><i class="fas fa-chart-pie"></i> Distribución de SLA por Área Operativa e Involucrados</div>
+                    <table class="sla-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 25%;">Área Operacional</th>
+                                <th style="width: 43%;">Responsable(s) Detectado(s) en Tramo</th>
+                                <th style="width: 16%;">Tiempo SLA Activo</th>
+                                <th style="width: 16%;">Tiempo Descontado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${htmlTablaFilas}
+                            <tr class="total-row">
+                                <td>TOTAL GENERAL</td>
+                                <td>-</td>
+                                <td>${totalReal} min (${(totalReal/60).toFixed(2).replace('.', ',')} h)</td>
+                                <td>${totalPausas} min (${(totalPausas/60).toFixed(2).replace('.', ',')} h)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="sla-section-title"><i class="fas fa-balance-scale"></i> Indicadores Globales de Resolución</div>
+                    <div class="sla-global-results">
+                        <div class="sla-global-card">
+                            <span>Tiempo Solución Total</span>
+                            <var>${totalSLA} Minutos</var>
+                            <small><i class="far fa-hourglass"></i> ${Math.floor(totalSLA/60)}h ${totalSLA%60}m</small>
+                        </div>
+                        <div class="sla-global-card">
+                            <span>Total Descontado (Pausas)</span>
+                            <var>${totalPausas} Minutos</var>
+                            <small><i class="fas fa-minus-circle"></i> ${Math.floor(totalPausas/60)}h ${totalPausas%60}m</small>
+                        </div>
+                        <div class="sla-global-card neto-destacado">
+                            <span>Tiempo Solución Real Neto</span>
+                            <var>${totalReal} Minutos</var>
+                            <small><i class="fas fa-check-double"></i> ${Math.floor(totalReal/60)}h ${totalReal%60}m</small>
+                        </div>
+                    </div>
+
+                </div>
             `;
 
-            showToast("✅ Análisis procesado con éxito.");
+            showToast("✅ Análisis estructurado y escalado correctamente.");
 
         } catch (err) {
             console.error(err);
-            container.innerHTML = `<div style="color:red; padding:20px; font-family:Arial;">❌ Error General: ${err.message}.</div>`;
+            container.innerHTML = `<div style="color:red; padding:20px; font-family:Arial; font-size:14px;">❌ Error General: ${err.message}.</div>`;
             showToast(`❌ Error de Procesamiento: ${err.message}`);
         }
     };
