@@ -3984,10 +3984,10 @@ async function procesarPdfSLA() {
                         animation: spin 0.8s linear infinite;
                         margin: 0 auto 15px auto;
                     "></div>
-                    <p style="color: #2c3e50; font-size: 13px; font-weight: bold; margin: 0;">
-                        🧠 Estructurando historial de Requerimiento...
+                    <p id="sla-loading-text" style="color: #2c3e50; font-size: 14px; font-weight: bold; margin: 0;">
+                        🧠 Inteligencia Artificial estructurando historial multipágina...
                     </p>
-                    <small style="color: #7f8c8d; font-size: 11px;">Mapeando áreas y recopilando nombres de actores involucrados.</small>
+                    <small id="sla-loading-sub" style="color: #7f8c8d; font-size: 12px; display: block; margin-top: 4px;">Calculando tramos operacionales y matriz de SLA.</small>
                 </div>
                 <style>
                     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -4059,24 +4059,31 @@ async function procesarPdfSLA() {
 
             const urlAPI = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
             
+            // --- MOTOR DE REINTENTOS AVANZADO (ANTIBLOQUEO 429 / 503) ---
             let response;
-            let intentos = 0;
-            let maxIntentos = 4;
-            let exitoPeticion = false;
+            let intento = 0;
+            const maxIntentos = 5;
+            let exito = false;
 
-            while (intentos < maxIntentos && !exitoPeticion) {
+            while (intento < maxIntentos && !exito) {
                 response = await fetch(urlAPI, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(promptEstructura)
                 });
 
-                if (response.status === 429) {
-                    intentos++;
-                    let tiempoEspera = intentos * 4000;
+                if (response.status === 429 || response.status === 503) {
+                    intento++;
+                    if (intento >= maxIntentos) break;
+
+                    let tiempoEspera = (Math.pow(2, intento) * 1000) + Math.floor(Math.random() * 1000);
+                    
+                    document.getElementById('sla-loading-text').innerText = `⏳ Servidor ocupado (Error ${response.status})...`;
+                    document.getElementById('sla-loading-sub').innerText = `Reintentando conexión automáticamente (Intento ${intento}/${maxIntentos-1}) en ${Math.round(tiempoEspera/1000)}s...`;
+                    
                     await new Promise(resolve => setTimeout(resolve, tiempoEspera));
                 } else {
-                    exitoPeticion = true;
+                    exito = true;
                 }
             }
 
@@ -4084,7 +4091,10 @@ async function procesarPdfSLA() {
 
             const data = await response.json();
             let rawText = data.candidates[0].content.parts[0].text.trim();
-            if (rawText.includes("```")) rawText = rawText.replace(/```json|```/gi, "").trim();
+            
+            if (rawText.includes("```")) {
+                rawText = rawText.replace(/```json|```/gi, "").trim();
+            }
             rawText = rawText.replace(/[\u0000-\u0019]+/g, ""); 
 
             const datosIA = JSON.parse(rawText);
@@ -4149,7 +4159,6 @@ async function procesarPdfSLA() {
             let resumenAreas = {};
             let totalSLA = 0, totalPausas = 0, totalReal = 0;
 
-            // --- ESTRUCTURA MODIFICADA: INICIALIZAR ARREGLO DE ACTORES ÚNICOS ---
             const listadoAreasUnicas = ["MDA PJUD4", "Residentes PJUD4", "SCO", "Logistica", "MDA PJUD5", "Residentes PJUD5", "Otra Área"];
             listadoAreasUnicas.forEach(a => {
                 resumenAreas[a] = { activo: 0, pausa: 0, actores: [] };
@@ -4182,105 +4191,75 @@ async function procesarPdfSLA() {
                     totalPausas += minutosTramo;
                     resumenAreas[area].pausa += minutosTramo;
                 } else {
-                    condicion = "ACTIVA";
-                    totalReal += minutosTramo;
+                    totalReal += minutesTramo;
                     resumenAreas[area].activo += minutosTramo;
                 }
                 totalSLA += minutosTramo;
 
-                // RECOPILACIÓN ASOCIATIVA DE ACTORES EN LA FILA CORRESPONDIENTE
                 if (act.responsable && act.responsable !== "DESCONOCIDO") {
-                    // Formatear estéticamente el nombre (Ej: Cristian Javier Lara Flores)
                     const nombreFormateado = act.responsable.replace(/\s+/g, ' ').trim();
                     if (!resumenAreas[area].actores.includes(nombreFormateado)) {
                         resumenAreas[area].actores.push(nombreFormateado);
                     }
                 }
 
-                // Busca esta porción dentro de tu bucle for y déjala mapeada así:
-let claseItem = "activa";
-if (condicion.includes("Objeción") || condicion.includes("Otra Área")) claseItem = "excluida";
-else if (condicion.includes("Planeado")) claseItem = "pausada";
+                let claseItem = "activa";
+                if (condicion.includes("Objeción") || condicion.includes("Otra Área")) claseItem = "excluida";
+                else if (condicion.includes("Planeado")) claseItem = "pausada";
 
-htmlCronologia += `
-    <li class="sla-timeline-item ${claseItem}">
-        <span class="sla-time-badge">${act.fecha} ${act.hora}</span> al <b>${prox.fecha} ${prox.prox_hora || prox.hora}</b><br>
-        El requerimiento estuvo asignado a <b>${act.responsable}</b> (<code>${area}</code>) en modalidad <span style="font-weight:bold;">${condicion}</span>.<br>
-        <span style="color:#555;">Subtotal consumido: ${formatearHorasComa(minutosTramo)}.</span>
-    </li>`;
+                htmlCronologia += `
+                    <li class="sla-timeline-item ${claseItem}">
+                        <span class="sla-time-badge">${act.fecha} ${act.hora}</span> al <b>${prox.fecha} ${prox.hora}</b><br>
+                        El requerimiento estuvo asignado a <b>${act.responsable}</b> (<code>${area}</code>) en modality <span style="font-weight:bold;">${condicion}</span>.<br>
+                        <span style="color:#555;">Subtotal consumido: ${formatearHorasComa(minutosTramo)}.</span>
+                    </li>`;
             }
 
-            // --- DISEÑO DE LAS FILAS DE LA TABLA CON COMPILACIÓN DE ACTORES (SLASHEADOS) ---
             let htmlTablaFilas = "";
             Object.keys(resumenAreas).forEach(area => {
                 if (resumenAreas[area].activo > 0 || resumenAreas[area].pausa > 0) {
-                    
-                    // Si el área compiló actores, los une usando " / ", de lo contrario muestra un guion descriptivo
-                    let cadenaActores = resumenAreas[area].actores.length > 0 
-                        ? resumenAreas[area].actores.join(" / ") 
-                        : "Sistema Automatizado";
-
+                    let cadenaActores = resumenAreas[area].actores.length > 0 ? resumenAreas[area].actores.join(" / ") : "Sistema Automatizado";
                     htmlTablaFilas += `
                         <tr>
                             <td><b>${area}</b></td>
-                            <td style="font-size: 11px; color: #444; max-width: 250px; word-wrap: break-word;">${cadenaActores}</td>
-                            <td>${resumenAreas[area].activo} min (equivalente a ${(resumenAreas[area].activo/60).toFixed(2).replace('.', ',')} h)</td>
-                            <td>${resumenAreas[area].pausa} min (equivalente a ${(resumenAreas[area].pausa/60).toFixed(2).replace('.', ',')} h)</td>
+                            <td style="font-size: 13px; color: #444; max-width: 250px; word-wrap: break-word;">${cadenaActores}</td>
+                            <td>${resumenAreas[area].activo} min (${(resumenAreas[area].activo/60).toFixed(2).replace('.', ',')} h)</td>
+                            <td>${resumenAreas[area].pausa} min (${(resumenAreas[area].pausa/60).toFixed(2).replace('.', ',')} h)</td>
                         </tr>`;
                 }
             });
 
-            // --- INYECCIÓN DE INTERFAZ EN FORMATO GRANDE (MÁXIMA LEGIBILIDAD) ---
+            // --- INYECCIÓN DE INTERFAZ EN FORMATO GRANDE COMPLETO ---
             container.innerHTML = `
                 <style>
                     .sla-card-container { font-family: 'Segoe UI', Arial, sans-serif; color: #2c3e50; margin-bottom: 30px; }
                     .sla-section-title { font-size: 17px; font-weight: bold; color: #014f8b; margin: 30px 0 15px 0; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; display: flex; align-items: center; gap: 10px; }
-                    
-                    /* Tarjeta de Resumen Base */
                     .sla-summary-box { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex; gap: 35px; flex-wrap: wrap; }
                     .sla-summary-item { font-size: 14px; min-width: 180px; }
                     .sla-summary-item b { color: #4a5568; display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-                    
-                    /* Línea de Tiempo Estilizada */
                     .sla-timeline { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 25px; list-style: none; margin: 0 0 30px 0; }
                     .sla-timeline-item { position: relative; padding-left: 30px; margin-bottom: 20px; font-size: 14px; line-height: 1.7; border-left: 2px solid #cbd5e1; }
                     .sla-timeline-item::before { content: ''; position: absolute; left: -6px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: #94a3b8; border: 2px solid #ffffff; }
-                    .sla-timeline-item:last-child { margin-bottom: 0; }
-                    .sla-timeline-item.activa { border-left-color: #014f8b; }
-                    .sla-timeline-item.activa::before { background: #014f8b; }
-                    .sla-timeline-item.pausada { border-left-color: #b48b02; }
-                    .sla-timeline-item.pausada::before { background: #b48b02; }
-                    .sla-timeline-item.excluida { border-left-color: #64748b; }
-                    .sla-timeline-item.excluida::before { background: #64748b; }
+                    .sla-timeline-item.activa { border-left-color: #014f8b; } .sla-timeline-item.activa::before { background: #014f8b; }
+                    .sla-timeline-item.pausada { border-left-color: #b48b02; } .sla-timeline-item.pausada::before { background: #b48b02; }
+                    .sla-timeline-item.excluida { border-left-color: #64748b; } .sla-timeline-item.excluida::before { background: #64748b; }
                     .sla-time-badge { background: #e2e8f0; color: #475569; padding: 3px 8px; border-radius: 4px; font-size: 12.5px; font-weight: bold; font-family: monospace; display: inline-block; margin-bottom: 4px; }
-                    
-                    /* Tabla de Asignaciones Homologada */
                     .sla-table { width: 100%; border-collapse: collapse; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden; font-size: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-                    .sla-table th { background-color: #014f8b; color: #ffffff; text-align: left; padding: 12px 16px; font-weight: bold; font-size: 13.5px; letter-spacing: 0.5px; }
+                    .sla-table th { background-color: #014f8b; color: #ffffff; text-align: left; padding: 12px 16px; font-weight: bold; font-size: 13.5px; }
                     .sla-table td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; color: #334155; line-height: 1.5; }
                     .sla-table tr:hover { background-color: #f8fafc; }
                     .sla-table tr.total-row { background: #f1f5f9; font-weight: bold; color: #0f172a; }
-                    .sla-table tr.total-row td { border-top: 2px solid #cbd5e1; color: #0f172a; font-size: 14.5px; }
-                    
-                    /* Bloque de Resultados Globales */
+                    .sla-table tr.total-row td { border-top: 2px solid #cbd5e1; font-size: 14.5px; color: #0f172a; }
                     .sla-global-results { background: #fffbeb; border: 1px solid #fef3c7; border-radius: 8px; padding: 20px; margin-top: 30px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
                     .sla-global-card { text-align: center; padding: 5px; }
-                    .sla-global-card span { display: block; font-size: 12px; font-weight: bold; color: #b48b02; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px; }
+                    .sla-global-card span { display: block; font-size: 12px; font-weight: bold; color: #b48b02; text-transform: uppercase; margin-bottom: 6px; }
                     .sla-global-card var { font-style: normal; font-size: 18px; font-weight: bold; color: #78350f; display: block; }
-                    .sla-global-card small { color: #92400e; font-size: 13px; display: block; margin-top: 4px; font-weight: 500; }
-                    .sla-global-card.neto-destacado span { color: #014f8b; }
-                    .sla-global-card.neto-destacado var { color: #1e3a8a; font-size: 20px; }
-                    .sla-global-card.neto-destacado small { color: #1e40af; }
-
-                    /* Adaptación para pantallas medianas */
-                    @media (max-width: 768px) {
-                        .sla-global-results { grid-template-columns: 1fr; gap: 15px; }
-                        .sla-summary-box { gap: 15px; }
-                    }
+                    .sla-global-card small { color: #92400e; font-size: 13px; display: block; margin-top: 4px; }
+                    .sla-global-card.neto-destacado span { color: #014f8b; } .sla-global-card.neto-destacado var { color: #1e3a8a; font-size: 20px; } .sla-global-card.neto-destacado small { color: #1e40af; }
+                    @media (max-width: 768px) { .sla-global-results { grid-template-columns: 1fr; gap: 15px; } .sla-summary-box { gap: 15px; } }
                 </style>
 
                 <div class="sla-card-container">
-                    
                     <div class="sla-section-title"><i class="fas fa-ticket-alt"></i> Resumen del Ticket</div>
                     <div class="sla-summary-box">
                         <div class="sla-summary-item"><b>Folio / ID</b><i class="fas fa-hashtag" style="color:#a0aec0; margin-right:6px;"></i> ${datosIA.folio || 'Desconocido'}</div>
@@ -4290,9 +4269,7 @@ htmlCronologia += `
                     </div>
 
                     <div class="sla-section-title"><i class="fas fa-history"></i> Cronología Detallada del Ciclo de Vida (SLA)</div>
-                    <ul class="sla-timeline">
-                        ${htmlCronologia} 
-                    </ul>
+                    <ul class="sla-timeline">${htmlCronologia}</ul>
 
                     <div class="sla-section-title"><i class="fas fa-chart-pie"></i> Distribución de SLA por Área Operativa e Involucrados</div>
                     <table class="sla-table">
@@ -4333,11 +4310,10 @@ htmlCronologia += `
                             <small><i class="fas fa-check-double"></i> ${Math.floor(totalReal/60)}h ${totalReal%60}m</small>
                         </div>
                     </div>
-
                 </div>
             `;
 
-            showToast("✅ Análisis estructurado y escalado correctamente.");
+            showToast("✅ Análisis procesado con éxito.");
 
         } catch (err) {
             console.error(err);
