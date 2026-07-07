@@ -1052,7 +1052,7 @@ function generarInformativoTecnico() {
     const container = document.getElementById('info-result-container');
     const asunto = `Informativo Técnico - Actividades Coordinadas SCO PJUD`;
     const para = "j.santos@fcom.cl";
-    const cc = "c.zapata@fcom.cl;j.sanhueza@fcom.cl; e.suarez@fcom.cl; e.socorro@fcom.cl; l.torres@fcom.cl; juan.diaz@fcom.cl; sandrade_fcom@pjud.cl; jchavez_hp@pjud.cl; s.guzman@fcom.cl; jmarrufo_hp@pjud.cl; f.solar@fcom.cl; svaldivieso_hp@pjud.cl; myabrudez_fcom@pjud.cl; j.riffo@fcom.cl; a.vacca@fcom.cl";
+    const cc = "c.zapata@fcom.cl;j.sanhueza@fcom.cl; e.suarez@fcom.cl; e.socorro@fcom.cl; l.torres@fcom.cl; juan.diaz@fcom.cl;  jchavez_hp@pjud.cl;  jmarrufo_hp@pjud.cl; f.solar@fcom.cl; svaldivieso_hp@pjud.cl; m.yabrudez@fcom.cl; j.riffo@fcom.cl; a.vacca@fcom.cl";
 
     const hoy = new Date();
     const diaObjetivo = new Date(hoy);
@@ -1542,11 +1542,11 @@ async function generarReporteCambios() {
 
     if (inputProyecto.includes("PJUD 4")) {
         para = "Jorge.ceballos.de.la.carrera@hp.com;carol.oteiza@hp.com";
-        cc = "frander.vindas@hp.com;j.marrufo@fcom.cl; juan.diaz@fcom.cl; jchavez_hp@pjud.cl;j.riffo@fcom.cl;s.valbuena@fcom.cl; s.guzman@fcom.cl; jmarrufo_hp@pjud.cl; svaldivieso_hp@pjud.cl; avacca_fcom@pjud.cl; a.vacca@fcom.cl; c.zapata@fcom.cl";
+        cc = "frander.vindas@hp.com;j.marrufo@fcom.cl; juan.diaz@fcom.cl; jchavez_hp@pjud.cl;j.riffo@fcom.cl;s.valbuena@fcom.cl; s.guzman@fcom.cl; jmarrufo_hp@pjud.cl; svaldivieso_hp@pjud.cl; avacca_hp@pjud.cl; a.vacca@fcom.cl; c.zapata@fcom.cl";
         asunto = `Control de cambios SCO PJUD4-2 hasta el ${fechaFinFormato}`;
     } else {
         para = "jorge.ceballos.de.la.carrera@hp.com; christian.ojeda@hp.com";
-        cc = "frander.vindas@hp.com;j.marrufo@fcom.cl; juan.diaz@fcom.cl; jchavez_hp@pjud.cl; s.guzman@fcom.cl; jmarrufo_hp@pjud.cl; svaldivieso_hp@pjud.cl; avacca_fcom@pjud.cl; a.vacca@fcom.cl; christian.ojeda@hp.com; c.zapata@fcom.cl; j.riffo@fcom.cl";
+        cc = "frander.vindas@hp.com;j.marrufo@fcom.cl; juan.diaz@fcom.cl; jchavez_hp@pjud.cl; s.guzman@fcom.cl; jmarrufo_hp@pjud.cl; svaldivieso_hp@pjud.cl; avacca_hp@pjud.cl; a.vacca@fcom.cl; christian.ojeda@hp.com; c.zapata@fcom.cl; j.riffo@fcom.cl";
         asunto = `Control de cambios SCO PJUD5 hasta el ${fechaFinFormato}`;
     }
 
@@ -1701,7 +1701,7 @@ function generarReporteAntivirus() {
     if (!inputFecha) return showToast("⚠️ Por favor selecciona una fecha.");
 
     const para = "myabrudez_fcom@pjud.cl"; 
-    const cc = "c.zapata@fcom.cl; s.guzman@fcom.cl; jmarrufo_hp@pjud.cl; roberto.miranda@fcom.cl; a.vacca@fcom.cl";
+    const cc = "c.zapata@fcom.cl; j.santos@fcom.cl; jmarrufo_hp@pjud.cl; ´soporte@fcom.cl; a.vacca@fcom.cl";
     
     const [y, m, d] = inputFecha.split('-');
     const fechaFormat = `${d}/${m}/${y}`;
