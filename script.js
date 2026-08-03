@@ -696,7 +696,7 @@ function generateEmail() {
     // Copias según el proyecto HP
     const proyecto = (selectedTicketData.proyecto || "").toUpperCase();
     if (proyecto.includes("PJUD 4")) cc += "; carol.oteiza@hp.com";
-    else if (proyecto.includes("PJUD 5")) cc += "; christian.ojeda@hp.com";
+    else if (proyecto.includes("PJUD 5")) cc += "; carol.oteiza@hp.com";
 
     const asunto = `Requerimiento ${selectedTicketData.num} - Coordinación SCO - Proyecto ${selectedTicketData.proyecto}`;
     const nombreCompleto = selectedTicketData.usuario || "Usuario";
@@ -910,7 +910,7 @@ function generarFormatoGuia(ticket) {
     
     const proyecto = (ticket.proyecto || "").toUpperCase();
     if (proyecto.includes("PJUD 4")) cc += "; carol.oteiza@hp.com";
-    else if (proyecto.includes("PJUD 5")) cc += "; christian.ojeda@hp.com";
+    else if (proyecto.includes("PJUD 5")) cc += "; carol.oteiza@hp.com"";
 
     const nombreUsuario = ticket.usuario ? ticket.usuario.split(' ')[0] : "Usuario";
     const asuntoRetiro = `Requerimiento ${ticket.num} - Retiro de Equipo Reportado, Proyecto ${ticket.proyecto}`;
@@ -1545,8 +1545,8 @@ async function generarReporteCambios() {
         cc = "frander.vindas@hp.com;j.marrufo@fcom.cl; juan.diaz@fcom.cl; jchavez_hp@pjud.cl;j.riffo@fcom.cl;s.valbuena@fcom.cl; s.guzman@fcom.cl; jmarrufo_hp@pjud.cl; svaldivieso_hp@pjud.cl; avacca_hp@pjud.cl; a.vacca@fcom.cl; c.zapata@fcom.cl";
         asunto = `Control de cambios SCO PJUD4-2 hasta el ${fechaFinFormato}`;
     } else {
-        para = "jorge.ceballos.de.la.carrera@hp.com; christian.ojeda@hp.com";
-        cc = "frander.vindas@hp.com;j.marrufo@fcom.cl; juan.diaz@fcom.cl; jchavez_hp@pjud.cl; s.guzman@fcom.cl; jmarrufo_hp@pjud.cl; svaldivieso_hp@pjud.cl; avacca_hp@pjud.cl; a.vacca@fcom.cl; christian.ojeda@hp.com; c.zapata@fcom.cl; j.riffo@fcom.cl";
+        para = "jorge.ceballos.de.la.carrera@hp.com; carol.oteiza@hp.com";
+        cc = "frander.vindas@hp.com;j.marrufo@fcom.cl; juan.diaz@fcom.cl; jchavez_hp@pjud.cl; s.guzman@fcom.cl; jmarrufo_hp@pjud.cl; svaldivieso_hp@pjud.cl; avacca_hp@pjud.cl; a.vacca@fcom.cl; c.zapata@fcom.cl; j.riffo@fcom.cl";
         asunto = `Control de cambios SCO PJUD5 hasta el ${fechaFinFormato}`;
     }
 
