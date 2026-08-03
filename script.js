@@ -910,7 +910,7 @@ function generarFormatoGuia(ticket) {
     
     const proyecto = (ticket.proyecto || "").toUpperCase();
     if (proyecto.includes("PJUD 4")) cc += "; carol.oteiza@hp.com";
-    else if (proyecto.includes("PJUD 5")) cc += "; carol.oteiza@hp.com"";
+    else if (proyecto.includes("PJUD 5")) cc += "; carol.oteiza@hp.com";
 
     const nombreUsuario = ticket.usuario ? ticket.usuario.split(' ')[0] : "Usuario";
     const asuntoRetiro = `Requerimiento ${ticket.num} - Retiro de Equipo Reportado, Proyecto ${ticket.proyecto}`;
