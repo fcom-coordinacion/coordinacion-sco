@@ -438,27 +438,101 @@
                     </div>
                 </div>
 
-                           <div id="tab-medicion-sla" class="tab-content hidden">
-    
-    <div class="card" style="margin-bottom: 20px;">
-        <h4 style="color: #014f8b; margin-top: 0; margin-bottom: 15px; font-family: Arial, sans-serif; font-weight: bold;">
-            <i class="fas fa-file-pdf" style="margin-right: 8px;"></i> Medición SLA desde PDF de Requerimiento
-        </h4>
-        <p style="margin-bottom: 15px; color: #555; font-size: 16px; font-family: Arial, sans-serif;">
-            Sube el archivo PDF del requerimiento para calcular la distribución de tiempos de atención y usuarios involucrados.
-        </p>
-        
-        <div style="display: flex; gap: 15px; align-items: center;">
-            <input type="file" id="sla-pdf-file" accept=".pdf" style="padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;">
-            <button onclick="procesarPdfSLA()" class="btn-primary" style="background: #014f8b; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold;">
-                <i class="fas fa-sync-alt"></i> Analizar SLA
-            </button>
-        </div>
-    </div>
+                           <!-- PESTAÑA: MEDICIÓN DE SLA CON PROMPT AUTOMÁTICO -->
+                <div id="tab-medicion-sla" class="tab-content hidden-content">
+                    <div class="card" style="margin-bottom: 20px; border-top: 4px solid #014f8b; border-radius: 8px;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 15px;">
+                            <div>
+                                <h4 style="color: #014f8b; margin-top: 0; margin-bottom: 8px; font-weight: bold; font-family: 'Segoe UI', Arial, sans-serif;">
+                                    <i class="fas fa-robot" style="margin-right: 8px; color: #014f8b;"></i> Análisis de SLA con modelo de IA
+                                </h4>
+                                <p style="margin-bottom: 0; color: #555; font-size: 0.95rem; max-width: 750px;">
+                                    Copia el prompt de analisis de SLA, pegalo en alguna IA y adjunta el .PDF del requerimiento (Mauweb)
+                                </p>
+                            </div>
+                            <!-- BOTÓN PRINCIPAL DE COPIADO RÁPIDO -->
+                            <button onclick="copiarPromptSLA()" class="btn-primary" style="background: #28a745; border-color: #28a745; color: white; padding: 10px 18px; font-weight: bold; border-radius: 5px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.95rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                <i class="fas fa-copy" style="font-size: 1.1rem;"></i> Copiar Prompt SLA
+                            </button>
+                        </div>
 
-    <div id="sla-result-container" class="hidden"></div>
+                        <hr style="margin: 20px 0; border: 0; border-top: 1px solid #e2e8f0;">
 
-</div>
+                        <!-- DESPLEGABLE VISUAL DEL PROMPT EN CÓDIGO -->
+                        <div class="pjud-header-toggle" onclick="toggleSection('prompt-viewer-body', 'icon-prompt-sla')" style="background: #f8fafc; padding: 12px 15px; border-radius: 5px; border: 1px solid #cbd5e1; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-weight: bold; color: #334155; font-size: 0.9rem;">
+                                <i class="fas fa-code" style="margin-right: 6px; color: #64748b;"></i> Ver / Revisar Prompt Maestro Configurado
+                            </span>
+                            <i id="icon-prompt-sla" class="fas fa-chevron-down" style="color: #64748b;"></i>
+                        </div>
+
+                        <div id="prompt-viewer-body" class="hidden-content" style="margin-top: 10px;">
+                            <textarea id="prompt-sla-text" readonly style="width: 100%; height: 280px; padding: 12px; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.82rem; background: #0f172a; color: #38bdf8; border-radius: 6px; border: 1px solid #1e293b; resize: vertical; line-height: 1.5;">Actúa como un analista de datos experto en Gestión de Servicios de TI y control de SLAs. Tu objetivo es analizar el historial de un ticket de soporte técnico en formato PDF, identificar a los responsables de cada acción y calcular el Tiempo de Solución Total, de Pausa y el Tiempo de Solución Real consumido, desglosándolo de forma personalizada por Responsable y por Área según las siguientes reglas de negocio:
+
+### 1. Matriz de Actores y Áreas Responsables
+Para cada registro de la bitácora, identifica la persona asignada en la fila "Derivado a:" (o "Creado por:" en el inicio) y clasifícala en su área correspondiente para atribuirle la responsabilidad del tiempo transcurrido (ya sea de conteo activo o de pausa):
+- Area: MDA PJUD4 -> Actores: JOSE ANDRES MARRUFO RAMOS, MATÍAS MANUEL GAJARDO RIQUELME, EDUARDO IGNACIO MORA HENRÍQUEZ, CRISTIAN JAVIER LARA FLORES.
+- Area: Residentes PJUD4 -> Actores: BASTIÁN FRANCISCO VALDOVINOS VALENZUELA.
+- Area: SCO -> Actores: SILVIA MARIA VALBUENA NAVARRO, SUSANA ANDREA GUZMAN ARROYO.
+- Area: Logistica -> Actores: CLAUDIO ANDRÉS FUENTES VENEGAS.
+- Area: MDA PJUD5 -> Actores: BENJAMÍN ANDRÉS IGNACIO LOYOLA SILVA, ANGELICA MARÍA VACCA FUENMAYOR, FERNANDO DANIEL ALONSO VARAS CÁDIZ, ENRIQUE ANDRÉS GONZÁLEZ VENEGAS, DIEGO IGNACIO LARA CARREÑO, BASTIÁN IGNACIO MEDINA GAJARDO.
+- Area: Residentes PJUD5 -> Actores: SERGIO SEBASTIÁN VALDIVIESO ROMÁN.
+
+* REGLA DE EXCLUSIÓN ("OTRA ÁREA"): Cualquier persona, actor, usuario solicitante o sistema automatizado que interactúe en la bitácora y que NO esté explícitamente mencionado en la lista anterior, se debe clasificar automáticamente bajo el nombre de área "Otra Área". El tiempo hábil en el que el ticket permanezca asignado a "Otra Área" NO debe sumar al Tiempo de Solución Real; se debe tratar y descontar exactamente igual que un bloque de pausa (el reloj del SLA se detiene).
+
+### 2. Calendario y Horario Hábil Diferenciado por Actor
+El tiempo de atención solo se contabiliza (corre el reloj) dentro de los siguientes rangos horarios de lunes a sábado (domingos y festivos el reloj se detiene por completo):
+
+* REGLA HORARIA GRUPO PJUD4 / SCO / LOGÍSTICA: Si el ticket se encuentra asignado de forma activa a un actor perteneciente a las áreas MDA PJUD4, Residentes PJUD4, SCO o Logística, la jornada laboral hábil para medir y contabilizar el tiempo corre desde las 07:30 hasta las 17:00 horas (Lunes a Viernes) y Sábados de 07:30 a 14:00 horas.
+* REGLA HORARIA GRUPO PJUD5: Si el ticket se encuentra asignado de forma activa a un actor perteneciente a las áreas MDA PJUD5 o Residentes PJUD5, la jornada laboral hábil para medir y contabilizar el tiempo corre desde las 08:00 hasta las 17:00 horas (Lunes a Viernes) y Sábados de 08:00 a 14:00 horas.
+
+Cualquier evento que ocurra antes del inicio de la jornada respectiva de cada grupo debe tomar como inicio de conteo el primer minuto hábil disponible de su propio horario (07:30 u 08:00 según corresponda).
+
+### 3. Estados e Interacciones y Reglas de Control de Reloj
+El historial se debe leer strictly en orden cronológico (desde el evento más antiguo hasta el más reciente). La adjudicación del tiempo se rige por las siguientes condiciones:
+
+- "REGLA DE ATRIBUCIÓN DEL RESPONSABLE": Al leer una interacción, el tiempo transcurrido ENTRE la fecha/hora de ese registro y la fecha/hora del siguiente hito se le atribuye EXCLUSIVAMENTE a la persona que aparece en el campo "Derivado a:" de ese mismo registro, utilizando su respectiva regla horaria (07:30 u 08:00) para calcular la porción de tiempo hábil transcurrido.
+- "Estado Creado": Es el punto de partida (T0). Aquí inicia el conteo del ticket. El tiempo transcurrido hasta la siguiente interacción se le atribuye al responsable que figure en la primera derivación ("Derivado a:"). Si pertenece a "Otra Área", el conteo real inicia en 0 hasta que sea tomado por un actor válido.
+- "Estado Derivado" / "Estado Objetado" (Interacciones normales): Son interacciones operativas. Si están asignadas a un actor válido de la matriz, NO detienen el reloj del SLA y se contabilizan como SLA ACTIVO consumido por dicha área y responsable. Si la derivación es hacia un actor clasificado como "Otra Área", el reloj se DETIENE automáticamente.
+  * REGLA DE REACTIVACIÓN POR ACCIÓN MANUAL: Si el ticket se encontraba en pausa (ya sea por un "Planeado", por estar en "Otra Área" o por una "Brecha de Objeción"), cualquier acción posterior registrada que sea asignada a un actor válido de la matriz ROMPE E INTERRUMPE inmediatamente esa pausa. El reloj del SLA vuelve a contar de forma activa a partir de la fecha y hora de esta interacción aplicando el horario inicial del grupo receptor.
+- "Estado Derivado Planeado para el [Fecha] a las [Hora]" / "Estado Objetado Planeado para el [Fecha] a las [Hora]": Este estado DETIENE el conteo del Tiempo Real. El bloque de pausa se le atribuye al área y responsable que generó/mantiene el planeado.
+  * REGLA DE ANULACIÓN POR SOBRE-PLANEACIÓN: Si se genera un nuevo "Planeado" mientras el requerimiento ya estaba en un periodo planeado previo, el nuevo bloque anula al anterior. El que cuenta y reemplaza la lógica es el último generado.
+  * REGLA DE FIN EXACTO DEL PLANEADO (CRÍTICA): Una pausa por planeado finaliza estrictamente en la [Fecha] y [Hora] en que fue programada. Si esa hora se cumple y no hay interacciones intermedias, el reloj del SLA se REACTIVA AUTOMÁTICAMENTE de forma ACTIVA en ese minuto exacto (siempre y cuando quede en manos de un área de la matriz).
+- "Estado Solucionado / Cerrado": Es un hito de resolución.
+  * REGLA DE BRECHA DE OBJECIÓN (CRÍTICA): El tiempo transcurrido desde el momento exacto en que se decreta un "Estado Solucionado" hasta el minuto exacto en que ingresa un registro de tipo "Estado Objetado" constituyendo una reapertura, se considera TIEMPO MUERTO fuera del control del soporte. Todo este tramo debe marcarse como EXCLUIDO y descontarse de manera completa tanto del conteo por áreas como del SLA Real Neto.
+  * Al ingresar el "Estado Objetado", el flujo se reinicia y vuelve a acumular SLA bajo las mismas reglas de interacciones operativas normales. El estado final definitivo detiene por completo el conteo global.
+
+### 4. Cálculos Requeridos y Formato de Tiempo
+A) Tiempo de Solución Total: Minutos hábiles brutos transcurridos desde la Creación hasta el Cierre definitivo, aplicando los topes horarios correspondientes a cada actor del tramo.
+B) Tiempo de Pausa (Descuentos): Suma de todos los bloques de "Planeado" aplicados de forma efectiva, más el tiempo en que el ticket estuvo asignado a "Otra Área", más los tramos correspondientes a la "Brecha de Objeción".
+C) Tiempo de Solución Real: Tiempo de Solución Total menos las Pausas totales. El remanente debe cuadrar exactamente con la suma del SLA Activo consumido por las áreas internas.
+* REGLA DE FORMATO DE TIEMPO (H,MM): Cada vez que muestres un resultado equivalente en horas, NO debes usar formato decimal. Debes convertirlo estrictamente a Horas y Minutos separando con una coma (por ejemplo: "90 minutos (equivalente a 1,30 horas)", "120 minutos (equivalente a 2,00 horas)" o "45 minutos (equivalente a 0,45 horas)").
+
+### 5. Formato de Salida Esperado
+Entrega la información estructurada de la siguiente manera:
+
+## Resumen del Ticket
+- **Folio / ID:** 
+- **Fecha Creación:** 
+- **Fecha Cierre/Último Estado:** 
+
+## Cronología Detallada y Personalizada del SLA
+*(Muestra la historia paso a paso en orden cronológico ascendente usando una narrativa personalizada)*
+- **[Fecha/Hora inicio] al [Fecha/Hora fin]:** [Nombre del Responsable] ([Área]) mantuvo el requerimiento de forma [ACTIVA / PAUSADA por Planeado / EXCLUIDA por Otra Área]. Consumo de SLA: X minutos (equivalente a X,XX horas).
+
+## Resumen de SLA Consumido por Área y Responsable
+Presenta una tabla estructurada con las siguientes columnas exactas y una fila final con los totalizadores generales del ticket (sumando minutos y mostrando conversión exacta en formato H,MM):
+| Área | Responsable | Tiempo SLA Activo (Conteo) | Tiempo de Pausa (Planeado) |
+| --- | --- | --- | --- |
+| TOTAL GENERAL | - | X minutos (equivalente a X,XX horas) | X minutos (equivalente a X,XX horas) |
+
+## Resultados Globales del SLA
+- **Tiempo de Solución Total:** X minutos hábiles (equivalente a X horas y X minutos).
+- **Total Tiempo Descontado (Pausas + Otra Área):** X minutos hábiles (equivalente a X horas y X minutos).
+- **Tiempo de Solución Real Neto:** X minutos hábiles (equivalente a X horas y X minutos).</textarea>
+                        </div>
+                    </div>
+                </div>
 
 
                 <div id="tab-informe-mda" class="tab-content hidden-content">
