@@ -2222,6 +2222,45 @@ Adjuntar la boleta, y la OT (Orden de trabajo) de la actividad, esta OT es la qu
     }
 }
 
+// Función para copiar el Prompt Maestro de SLA al portapapeles
+function copiarPromptSLA() {
+    const textoPrompt = document.getElementById('prompt-sla-text');
+    if (!textoPrompt) return;
+
+    // Copiado al portapapeles
+    navigator.clipboard.writeText(textoPrompt.value).then(() => {
+        mostrarNotificacionToast("¡Prompt maestro copiado al portapapeles!");
+    }).catch(() => {
+        // Fallback para navegadores antiguos
+        textoPrompt.select();
+        document.execCommand('copy');
+        mostrarNotificacionToast("¡Prompt maestro copiado al portapapeles!");
+    });
+}
+
+// Función auxiliar para desplegar el Toast Flotante exactamente igual a tus otras secciones
+function mostrarNotificacionToast(mensaje) {
+    const toast = document.getElementById('toast-container');
+    const toastMsg = document.getElementById('toast-message');
+
+    if (toast && toastMsg) {
+        toastMsg.textContent = mensaje;
+        
+        // Remueve la clase oculta y activa la animación
+        toast.classList.remove('toast-hidden');
+        toast.classList.add('toast-show');
+
+        // Se oculta automáticamente tras 3 segundos
+        setTimeout(() => {
+            toast.classList.remove('toast-show');
+            toast.classList.add('toast-hidden');
+        }, 3000);
+    } else {
+        // Resguardo si no encuentra el contenedor en el DOM
+        console.log(mensaje);
+    }
+}
+
 // =========================================================
 // === MÓDULO: INFORME MENSUAL MDA (CON AUDITORÍA QA Y DESGLOSE DE ANULADOS LADO A LADO) ===
 // =========================================================
