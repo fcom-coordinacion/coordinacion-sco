@@ -1882,15 +1882,15 @@ const BIBLIOTECA_LINKS = [
         titulo: "Control De Cambios PJUD4",
         desc: "Registro acumulado de cambios de equipos del proyecto PJUD5 - planilla",
         url: "https://docs.google.com/spreadsheets/d/1lE8qh6PjsjNIPBNWxYOuyV8yTARmR2Zt9CSSxiA2qZk/edit?gid=0#gid=0",
-        credenciales: [
-             { label: "PIN", value: "pjud5upg", tipo: "text" }
-        ]
+        credenciales: []
     },
     {
         titulo: "Biblioteca de Comentarios",
         desc: "Accede a comentarios estandarizados y automatizados.",
         url: "https://mdapjud.netlify.app/#comentarios",
-        credenciales: []
+        credenciales: [
+             { label: "PIN", value: "pjud5upg", tipo: "text" }
+        ]
     },
     {
         titulo: "Consulta de Equipos",
