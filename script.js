@@ -776,6 +776,7 @@ function generateWhatsApp() {
     const esCambio = (selectedTicketData.backup === "SI");
     const actividad = esCambio ? "CAMBIO DE EQUIPO" : "REVISIÓN / CONFIGURACION EQUIPO";
     const dir = selectedTicketData.direccion || "No especificada";
+    const numTkt = selectedTicketData.num || "";
     
     const tipoEquipo = selectedTicketData.tipo || "No especificado";
     const serieReportada = selectedTicketData.serie || "No registrada";
@@ -785,9 +786,13 @@ function generateWhatsApp() {
         serieDespachada = selectedTicketData.despachosRaw.trim();
     }
 
-    const mensaje = `☑️ *TK:* ${selectedTicketData.num}\n🧰 *Tecnico:* ${tech}\n📀 *Proyecto:* ${selectedTicketData.proyecto}\n🏛️ *Tribunal:* ${selectedTicketData.dependencia}\n🏛️ *Direccion:* ${dir}\n👤 *Usuario:* ${selectedTicketData.usuario}\n📱 *Telefono:* ${selectedTicketData.telefono}\n🗓️ *Fecha Coordinada:* ${date}\n⏰ *Hora:* ${time}\n📝 *Actividad:* ${actividad}\n💻 *Tipo Equipo:* ${tipoEquipo}\n🏷️ *Serie Reportada:* ${serieReportada}\n📦 *Serie Despachada:* ${serieDespachada}\n\n🚨🚨 *OBLIGATORIO:*🚨🚨 \n* - 👉🏼👉🏼👉🏼✅ *SIEMPRE REALIZAR RESPALDO PREVIO DE DATOS (MASTERIZACION O CAMBIOS)*👈🏼👈🏼👈🏼  \n* -COLOCAR LA IP EN TODAS LAS ATENCIONES \n* -ENVIAR PANTALLAZO A COORDINACION DE PROCESO DE MIGRACION DE DATA "FASTCOPY"*\n\n⚠️ *Nota:* SI ES UN CAMBIO DE MULTIFUNCIONAL FAVOR COMUNICARSE CON EL ADM DE IMPRESION (JOSE CHAVEZ) ANTES DE DESCONECTAR LA MULTIFUNCIONAL SALIENTE. ENTREGAR DIRECCION IP.
-`;
+    // Generación dinámica de la URL del PDF del PJUD
+    const urlPdfPJUD = `http://mesaayuda.intranet.pjud/mesa_ayuda/historialpdf.php?crr_requerimiento_id=${numTkt}`;
+
+    const mensaje = `☑️ *TK:* ${numTkt}\n🧰 *Tecnico:* ${tech}\n📀 *Proyecto:* ${selectedTicketData.proyecto}\n🏛️ *Tribunal:* ${selectedTicketData.dependencia}\n🏛️ *Direccion:* ${dir}\n👤 *Usuario:* ${selectedTicketData.usuario}\n📱 *Telefono:* ${selectedTicketData.telefono}\n🗓️ *Fecha Coordinada:* ${date}\n⏰ *Hora:* ${time}\n📝 *Actividad:* ${actividad}\n💻 *Tipo Equipo:* ${tipoEquipo}\n🏷️ *Serie Reportada:* ${serieReportada}\n📦 *Serie Despachada:* ${serieDespachada}\n\n🚨🚨 *OBLIGATORIO:*🚨🚨 \n* - 👉🏼👉🏼👉🏼✅ *SIEMPRE REALIZAR RESPALDO PREVIO DE DATOS (MASTERIZACION O CAMBIOS)*👈🏼👈🏼👈🏼  \n* -COLOCAR LA IP EN TODAS LAS ATENCIONES \n* -ENVIAR PANTALLAZO A COORDINACION DE PROCESO DE MIGRACION DE DATA "FASTCOPY"*\n\n⚠️ *Nota:* SI ES UN CAMBIO DE MULTIFUNCIONAL FAVOR COMUNICARSE CON EL ADM DE IMPRESION (JOSE CHAVEZ) ANTES DE DESCONECTAR LA MULTIFUNCIONAL SALIENTE. ENTREGAR DIRECCION IP.`;
     
+    // ... dentro de generateWhatsApp() ...
+
     const htmlWhatsApp = `
         <div class="card" style="border: none; padding: 0; background: transparent; margin-bottom: 20px;">
              <div class="pjud-header-toggle" onclick="toggleSection('wa-body', 'icon-wa')" style="border-top: 4px solid #25D366;">
@@ -795,19 +800,148 @@ function generateWhatsApp() {
                 <i id="icon-wa" class="fas fa-chevron-up rotate-icon"></i>
             </div>
             <div id="wa-body" style="background: white; border: 1px solid #ddd; padding: 20px; border-radius: 0 0 5px 5px;">
-                <pre id="copy-area-wa" style="background:#e9f7ef; border:1px solid var(--success-green); padding:15px; border-radius:8px; white-space:pre-wrap; min-height: 250px; max-height: none; font-family: inherit;">${mensaje}</pre>
-                <div class="button-actions-group">
+                <pre id="copy-area-wa" style="background:#e9f7ef; border:1px solid var(--success-green); padding:15px; border-radius:8px; white-space:pre-wrap; min-height: 200px; max-height: none; font-family: inherit;">${mensaje}</pre>
+                
+                <!-- ACCIONES DE TEXTO -->
+                <div class="button-actions-group" style="margin-bottom: 15px;">
                     <button onclick="enviarWA('${encodeURIComponent(mensaje)}')" class="btn-whatsapp">
                         <i class="fab fa-whatsapp"></i> Enviar WhatsApp
                     </button>
-                    <button onclick="copyId('copy-area-wa')" class="btn-copy-body">
-                        <i class="fas fa-copy"></i> Copiar Texto
+                    <button onclick="copiarWhatsAppConRespaldos('copy-area-wa')" class="btn-copy-body" style="background-color: #198754; border-color: #198754; color: white;">
+                        <i class="fas fa-copy"></i> Copiar Texto Editable
                     </button>
                 </div>
+
+                <!-- SECCIÓN TARJETA ACCESO DIRECTO AL PDF (REEMPLAZA AL IFRAME BLOQUEADO) -->
+                <div style="border-top: 1px dashed #ccc; padding-top: 15px; margin-top: 15px;">
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #014f8b; border-radius: 6px; padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                        <div>
+                            <span style="font-weight: bold; color: #014f8b; font-size: 0.9rem; display: block;">
+                                <i class="fas fa-file-pdf"></i> Historial de Requerimiento TK ${numTkt}
+                            </span>
+                            <span style="color: #64748b; font-size: 0.8rem;">
+                                Consulta la bitácora completa en el sistema de la Intranet
+                            </span>
+                        </div>
+                        <a href="${urlPdfPJUD}" target="_blank" rel="noopener noreferrer" class="btn-primary" style="padding: 8px 16px; font-size: 0.85rem; background: #014f8b; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                            <i class="fas fa-external-link-alt"></i> Ver PDF en Intranet
+                        </a>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN DE RESPALDOS ADJUNTO -->
+                <div style="border-top: 1px dashed #ccc; padding-top: 15px; margin-top: 15px;">
+                    <span style="font-weight: bold; color: #555; font-size: 0.85rem; display: block; margin-bottom: 10px;">
+                        <i class="fas fa-paperclip"></i> Respaldos Adjuntos de Referencia:
+                    </span>
+                    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                        <div style="text-align: center; background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px; border-radius: 6px;">
+                            <img id="img-respaldo-1" src="respaldo1.png" alt="Respaldo FastCopy" style="max-width: 160px; height: auto; border: 1px solid #ddd; border-radius: 4px; display: block; margin-bottom: 8px;">
+                            <span style="font-size: 0.75rem; color: #334155; font-weight: bold; display: block; margin-bottom: 6px;">FastCopy</span>
+                            <button onclick="copiarImagenPorElemento('img-respaldo-1', 'FastCopy')" class="btn-primary" style="padding: 4px 10px; font-size: 0.75rem; background: #014f8b; border: none; width: 100%;">
+                                <i class="fas fa-image"></i> Copiar Imagen
+                            </button>
+                        </div>
+                        <div style="text-align: center; background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px; border-radius: 6px;">
+                            <img id="img-respaldo-2" src="respaldo2.png" alt="Respaldo CrystalDisk" style="max-width: 160px; height: auto; border: 1px solid #ddd; border-radius: 4px; display: block; margin-bottom: 8px;">
+                            <span style="font-size: 0.75rem; color: #334155; font-weight: bold; display: block; margin-bottom: 6px;">CrystalDisk</span>
+                            <button onclick="copiarImagenPorElemento('img-respaldo-2', 'CrystalDisk')" class="btn-primary" style="padding: 4px 10px; font-size: 0.75rem; background: #014f8b; border: none; width: 100%;">
+                                <i class="fas fa-image"></i> Copiar Imagen
+                            </button>
+                        </div>
+                        <div style="text-align: center; background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px; border-radius: 6px;">
+                            <img id="img-respaldo-3" src="respaldo3.png" alt="HP Diagnostic" style="max-width: 160px; height: auto; border: 1px solid #ddd; border-radius: 4px; display: block; margin-bottom: 8px;">
+                            <span style="font-size: 0.75rem; color: #334155; font-weight: bold; display: block; margin-bottom: 6px;">HP Diagnostic</span>
+                            <button onclick="copiarImagenPorElemento('img-respaldo-2', 'CrystalDisk')" class="btn-primary" style="padding: 4px 10px; font-size: 0.75rem; background: #014f8b; border: none; width: 100%;">
+                                <i class="fas fa-image"></i> Copiar Imagen
+                            </button>
+                        </div>
+                        <div style="text-align: center; background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px; border-radius: 6px;">
+                            <img id="img-respaldo-4" src="respaldo4.png" alt="Orden Remaster" style="max-width: 160px; height: auto; border: 1px solid #ddd; border-radius: 4px; display: block; margin-bottom: 8px;">
+                            <span style="font-size: 0.75rem; color: #334155; font-weight: bold; display: block; margin-bottom: 6px;">Orden Remaster</span>
+                            <button onclick="copiarImagenPorElemento('img-respaldo-2', 'CrystalDisk')" class="btn-primary" style="padding: 4px 10px; font-size: 0.75rem; background: #014f8b; border: none; width: 100%;">
+                                <i class="fas fa-image"></i> Copiar Imagen
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
     `;
     mostrarResultado("WhatsApp para Técnico", htmlWhatsApp, true);
+}
+async function copiarWhatsAppConRespaldos(idAreaTexto) {
+    try {
+        const elementoTexto = document.getElementById(idAreaTexto);
+        if (!elementoTexto) return;
+
+        const textoPlano = elementoTexto.textContent || elementoTexto.innerText;
+
+        // 1. Copiado directo del Texto Plano a la memoria primaria (Garantiza texto editable en WhatsApp)
+        await navigator.clipboard.writeText(textoPlano);
+
+        // 2. Notificación al usuario
+        if (typeof mostrarNotificacionToast === 'function') {
+            mostrarNotificacionToast("¡Texto de WhatsApp copiado al portapapeles!");
+        } else if (typeof mostrarToast === 'function') {
+            mostrarToast("¡Texto de WhatsApp copiado al portapapeles!");
+        }
+
+    } catch (error) {
+        console.error("Error al copiar texto:", error);
+        
+        // Fallback para navegadores con permisos restringidos
+        const elementoTexto = document.getElementById(idAreaTexto);
+        if (elementoTexto) {
+            const areaTemporal = document.createElement('textarea');
+            areaTemporal.value = elementoTexto.textContent;
+            document.body.appendChild(areaTemporal);
+            areaTemporal.select();
+            document.execCommand('copy');
+            document.body.removeChild(areaTemporal);
+            
+            if (typeof mostrarNotificacionToast === 'function') {
+                mostrarNotificacionToast("¡Texto copiado al portapapeles!");
+            }
+        }
+    }
+}
+
+
+async function copiarImagenPorElemento(idImgElement, nombreRespaldo) {
+    try {
+        const imgElement = document.getElementById(idImgElement);
+        if (!imgElement) return;
+
+        // Crear lienzo en memoria para renderizar la imagen exacta
+        const canvas = document.createElement('canvas');
+        canvas.width = imgElement.naturalWidth || imgElement.width;
+        canvas.height = imgElement.naturalHeight || imgElement.height;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(imgElement, 0, 0);
+
+        canvas.toBlob(async (blob) => {
+            if (!blob) {
+                alert("No se pudo procesar la imagen.");
+                return;
+            }
+
+            const item = new ClipboardItem({ 'image/png': blob });
+            await navigator.clipboard.write([item]);
+
+            if (typeof mostrarNotificacionToast === 'function') {
+                mostrarNotificacionToast(`¡Imagen ${nombreRespaldo} copiada!`);
+            } else if (typeof mostrarToast === 'function') {
+                mostrarToast(`¡Imagen ${nombreRespaldo} copiada!`);
+            }
+        }, 'image/png');
+
+    } catch (err) {
+        console.error("Error copiando la imagen:", err);
+        alert("No se pudo copiar la imagen automáticamente. Haz clic derecho sobre la imagen y selecciona 'Copiar imagen'.");
+    }
 }
 
 
