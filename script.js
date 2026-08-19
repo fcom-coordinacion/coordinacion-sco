@@ -817,10 +817,10 @@ function generateWhatsApp() {
                     <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #014f8b; border-radius: 6px; padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                         <div>
                             <span style="font-weight: bold; color: #014f8b; font-size: 0.9rem; display: block;">
-                                <i class="fas fa-file-pdf"></i> Historial de Requerimiento TK ${numTkt}
+                                <i class="fas fa-file-pdf"></i> Historial de Requerimiento Mauweb - TK ${numTkt}
                             </span>
                             <span style="color: #64748b; font-size: 0.8rem;">
-                                Consulta la bitácora completa en el sistema de la Intranet
+                                Revisa el PDF del historial de requerimiento y Descarga
                             </span>
                         </div>
                         <a href="${urlPdfPJUD}" target="_blank" rel="noopener noreferrer" class="btn-primary" style="padding: 8px 16px; font-size: 0.85rem; background: #014f8b; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
