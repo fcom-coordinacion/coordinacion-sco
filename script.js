@@ -824,7 +824,7 @@ function generateWhatsApp() {
                             </span>
                         </div>
                         <a href="${urlPdfPJUD}" target="_blank" rel="noopener noreferrer" class="btn-primary" style="padding: 8px 16px; font-size: 0.85rem; background: #014f8b; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                            <i class="fas fa-external-link-alt"></i> Ver PDF en Intranet
+                            <i class="fas fa-external-link-alt"></i> Ver PDF
                         </a>
                     </div>
                 </div>
