@@ -852,14 +852,14 @@ function generateWhatsApp() {
                         <div style="text-align: center; background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px; border-radius: 6px;">
                             <img id="img-respaldo-3" src="respaldo3.png" alt="HP Diagnostic" style="max-width: 160px; height: auto; border: 1px solid #ddd; border-radius: 4px; display: block; margin-bottom: 8px;">
                             <span style="font-size: 0.75rem; color: #334155; font-weight: bold; display: block; margin-bottom: 6px;">HP Diagnostic</span>
-                            <button onclick="copiarImagenPorElemento('img-respaldo-2', 'CrystalDisk')" class="btn-primary" style="padding: 4px 10px; font-size: 0.75rem; background: #014f8b; border: none; width: 100%;">
+                            <button onclick="copiarImagenPorElemento('img-respaldo-3', 'HP Diagnostic')" class="btn-primary" style="padding: 4px 10px; font-size: 0.75rem; background: #014f8b; border: none; width: 100%;">
                                 <i class="fas fa-image"></i> Copiar Imagen
                             </button>
                         </div>
                         <div style="text-align: center; background: #f8fafc; border: 1px solid #e2e8f0; padding: 8px; border-radius: 6px;">
                             <img id="img-respaldo-4" src="respaldo4.png" alt="Orden Remaster" style="max-width: 160px; height: auto; border: 1px solid #ddd; border-radius: 4px; display: block; margin-bottom: 8px;">
                             <span style="font-size: 0.75rem; color: #334155; font-weight: bold; display: block; margin-bottom: 6px;">Orden Remaster</span>
-                            <button onclick="copiarImagenPorElemento('img-respaldo-2', 'CrystalDisk')" class="btn-primary" style="padding: 4px 10px; font-size: 0.75rem; background: #014f8b; border: none; width: 100%;">
+                            <button onclick="copiarImagenPorElemento('img-respaldo-4', 'Orden Remaster')" class="btn-primary" style="padding: 4px 10px; font-size: 0.75rem; background: #014f8b; border: none; width: 100%;">
                                 <i class="fas fa-image"></i> Copiar Imagen
                             </button>
                         </div>
