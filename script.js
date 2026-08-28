@@ -696,7 +696,7 @@ function generateEmail() {
     // Copias según el proyecto HP
     const proyecto = (selectedTicketData.proyecto || "").toUpperCase();
     if (proyecto.includes("PJUD 4")) cc += "; carol.oteiza@hp.com";
-    else if (proyecto.includes("PJUD 5")) cc += "alejandro.ramos@hp.com; carol.oteiza@hp.com";
+    else if (proyecto.includes("PJUD 5")) cc += ";alejandro.ramos@hp.com; carol.oteiza@hp.com";
 
     const asunto = `Requerimiento ${selectedTicketData.num} - Coordinación SCO - Proyecto ${selectedTicketData.proyecto}`;
     const nombreCompleto = selectedTicketData.usuario || "Usuario";
