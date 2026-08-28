@@ -110,27 +110,32 @@
                 </div>
 
                 <div class="card hidden" id="coord-editor" style="border: none; box-shadow: none; padding: 0;">
-                    <div class="pjud-header-toggle" onclick="toggleSection('editor-body', 'icon-editor')">
-                        <h3 id="editing-title">Gestión de Ticket</h3>
-                        <i id="icon-editor" class="fas fa-chevron-up rotate-icon"></i>
-                    </div>
-                    <div id="editor-body" style="border: 1px solid #ddd; padding: 20px; border-radius: 0 0 5px 5px; background: white;">
-                        <div class="coord-row-inline" style="display: flex; gap: 10px; align-items: flex-end;">
-                            <div class="input-group-small"><label><i class="far fa-calendar-alt"></i> Fecha Atención</label><input type="date" id="coord-date"></div>
-                            <div class="input-group-small"><label><i class="far fa-clock"></i> Hora Aprox.</label><input type="time" id="coord-time"></div>
-                            <div class="input-group-small" style="flex: 2;">
-                                <label><i class="fas fa-user-cog"></i> Técnico Asignado</label>
-                                <select id="tech-name"><option value="">Seleccione un técnico...</option></select>
-                            </div>
-                            <button class="btn-primary" onclick="saveTicketCoordination()" style="background-color: #28a745; height: 38px; padding: 0 15px; margin-bottom: 1px;"><i class="fas fa-save"></i> Guardar</button>
-                        </div>
-                        <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
-                        <div class="button-actions-group">
-                            <button class="btn-whatsapp" onclick="generateWhatsApp()"><i class="fab fa-whatsapp"></i> WhatsApp Técnico</button>
-                            <button class="btn-outlook" onclick="generateEmail()"><i class="fas fa-envelope"></i> Correo Usuario</button>
-                        </div>
-                    </div>
-                </div>
+    <div class="pjud-header-toggle" onclick="toggleSection('editor-body', 'icon-editor')">
+        <h3 id="editing-title">Gestión de Ticket</h3>
+        <i id="icon-editor" class="fas fa-chevron-up rotate-icon"></i>
+    </div>
+    <div id="editor-body" style="border: 1px solid #ddd; padding: 20px; border-radius: 0 0 5px 5px; background: white;">
+        <div class="coord-row-inline" style="display: flex; gap: 10px; align-items: flex-end;">
+            <div class="input-group-small"><label><i class="far fa-calendar-alt"></i> Fecha Atención</label><input type="date" id="coord-date"></div>
+            <div class="input-group-small"><label><i class="far fa-clock"></i> Hora Aprox.</label><input type="time" id="coord-time"></div>
+            <div class="input-group-small" style="flex: 2;">
+                <label><i class="fas fa-user-cog"></i> Técnico Asignado</label>
+                <select id="tech-name"><option value="">Seleccione un técnico...</option></select>
+            </div>
+            
+            <!-- BOTÓN GUARDAR (VERDE) -->
+            <button class="btn-primary" onclick="saveTicketCoordination()" style="background-color: #28a745; height: 38px; padding: 0 15px; margin-bottom: 1px;"><i class="fas fa-save"></i> Guardar</button>
+            
+            <!-- BOTÓN PROGRAMAR (NARANJO) -->
+            <button class="btn-primary" onclick="saveTicketCoordination()" style="background-color: #fd7e14; border-color: #fd7e14; height: 38px; padding: 0 15px; margin-bottom: 1px;"><i class="fas fa-calendar-alt"></i> Programar</button>
+        </div>
+        <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+        <div class="button-actions-group">
+            <button class="btn-whatsapp" onclick="generateWhatsApp()"><i class="fab fa-whatsapp"></i> WhatsApp Técnico</button>
+            <button class="btn-outlook" onclick="generateEmail()"><i class="fas fa-envelope"></i> Correo Usuario</button>
+        </div>
+    </div>
+</div>
 
                 <div class="card hidden" id="result-container">
                     <h3 id="result-type-title" style="margin-bottom:15px;">Resultado Generado</h3>
