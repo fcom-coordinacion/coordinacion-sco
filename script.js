@@ -131,7 +131,7 @@ const TECNICOS_POR_JURISDICCION = {
     "Corte De Apelaciones De Santiago": ["MATIAS  INOSTROZA ","JUAN  MANRIQUEZ ","BASTIAN  CARDENAS ","VICENTE  CULACIATI ","GERMAN PACHECO ","EDUARDO  DIAZ ","WILSCONIDEL DAUSTKY "],
     "Corte De Apelaciones De San Miguel": ["MATIAS  INOSTROZA ","JUAN  MANRIQUEZ ","BASTIAN  CARDENAS ","VICENTE  CULACIATI ","GERMAN PACHECO ","EDUARDO  DIAZ ","WILSCONIDEL DAUSTKY "],
     "Corte De Apelaciones De Rancagua": ["MATIAS  INOSTROZA ","JUAN  MANRIQUEZ ","BASTIAN  CARDENAS ","VICENTE  CULACIATI ","GERMAN PACHECO ","EDUARDO  DIAZ ","WILSCONIDEL DAUSTKY "],
-    "Corte De Apelaciones De Talca": [" FERNANDO  ALARCON ", "CRISTIAN  CORDOVA "],
+    "Corte De Apelaciones De Talca": ["CRISTIAN  CORDOVA "],
     "Corte De Apelaciones De Chillan": ["MATIAS ALBURQUENQUE "],
     "Corte De Apelaciones De Concepcion": ["ROBINSON  BALLOQUI ", "PABLO  TORRES ","PABLO  RIOS "],
     "Corte De Apelaciones De Concepción": ["ROBINSON  BALLOQUI ", "PABLO  TORRES SALINAS","PABLO  RIOS "],
