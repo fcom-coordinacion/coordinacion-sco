@@ -127,10 +127,10 @@ const TECNICOS_POR_JURISDICCION = {
     "Corte De Apelaciones De Copiapo": ["ALVARO  SILVA", "JUAN  SEPULVEDA "],
     "Corte De Apelaciones De Copiapó": ["ALVARO  SILVA", "JUAN SEPULVEDA "],
     "Corte De Apelaciones De La Serena": ["BORIS  REINOSO ", "IGNACIO  SOTOMAYOR "],
-    "Corte De Apelaciones De Valparaiso": ["ISMAEL CALQUIN","MAURICIO  TOLEDO ","JORGE  LOPEZ ","MATIAS  INOSTROZA ","JUAN  MANRIQUEZ ","GONZALO  CORTES ","MATIAS  JORQUERA ","BASTIAN  CARDENAS ","VICENTE  CULACIATI ","GERMAN PACHECO ","EDUARDO  DIAZ ","WILSCONIDEL DAUSTKY "],
-    "Corte De Apelaciones De Santiago": ["ISMAEL CALQUIN","JORGE  LOPEZ ","MATIAS  INOSTROZA ","JUAN  MANRIQUEZ ","GONZALO  CORTES ","MATIAS  JORQUERA ","BASTIAN  CARDENAS ","VICENTE  CULACIATI ","GERMAN PACHECO ","EDUARDO  DIAZ ","WILSCONIDEL DAUSTKY "],
-    "Corte De Apelaciones De San Miguel": ["ISMAEL CALQUIN","JORGE  LOPEZ ","MATIAS  INOSTROZA ","JUAN  MANRIQUEZ ","GONZALO  CORTES ","MATIAS  JORQUERA ","BASTIAN  CARDENAS ","VICENTE  CULACIATI ","GERMAN PACHECO ","EDUARDO  DIAZ ","WILSCONIDEL DAUSTKY "],
-    "Corte De Apelaciones De Rancagua": ["ISMAEL CALQUIN","JORGE  LOPEZ ","MATIAS  INOSTROZA ","JUAN  MANRIQUEZ ","GONZALO  CORTES ","MATIAS  JORQUERA ","BASTIAN  CARDENAS ","VICENTE  CULACIATI ","GERMAN PACHECO ","EDUARDO  DIAZ ","WILSCONIDEL DAUSTKY "],
+    "Corte De Apelaciones De Valparaiso": ["MAURICIO  TOLEDO ","MATIAS  INOSTROZA ","JUAN  MANRIQUEZ ","BASTIAN  CARDENAS ","VICENTE  CULACIATI ","GERMAN PACHECO ","EDUARDO  DIAZ ","WILSCONIDEL DAUSTKY "],
+    "Corte De Apelaciones De Santiago": ["MATIAS  INOSTROZA ","JUAN  MANRIQUEZ ","BASTIAN  CARDENAS ","VICENTE  CULACIATI ","GERMAN PACHECO ","EDUARDO  DIAZ ","WILSCONIDEL DAUSTKY "],
+    "Corte De Apelaciones De San Miguel": ["MATIAS  INOSTROZA ","JUAN  MANRIQUEZ ","BASTIAN  CARDENAS ","VICENTE  CULACIATI ","GERMAN PACHECO ","EDUARDO  DIAZ ","WILSCONIDEL DAUSTKY "],
+    "Corte De Apelaciones De Rancagua": ["MATIAS  INOSTROZA ","JUAN  MANRIQUEZ ","BASTIAN  CARDENAS ","VICENTE  CULACIATI ","GERMAN PACHECO ","EDUARDO  DIAZ ","WILSCONIDEL DAUSTKY "],
     "Corte De Apelaciones De Talca": [" FERNANDO  ALARCON ", "CRISTIAN  CORDOVA "],
     "Corte De Apelaciones De Chillan": ["MATIAS ALBURQUENQUE "],
     "Corte De Apelaciones De Concepcion": ["ROBINSON  BALLOQUI ", "PABLO  TORRES ","PABLO  RIOS "],
@@ -140,7 +140,7 @@ const TECNICOS_POR_JURISDICCION = {
     "Corte De Apelaciones De Puerto Montt": ["HECTOR  BARRIENTOS "," DANITZA NOVOA ","GABRIEL CALDERON "],
     "Corte De Apelaciones De Coyhaique": ["ALFREDO ALEJANDRO TORRES ORELLANA"],
     "Corte De Apelaciones De Punta Arenas": ["RICARDO LEONEL GARAY ALTAMIRANO"],
-    "Corporacion Administrativa Central": ["JORGE IGNACIO LOPEZ TORRES","MATIAS GIOVANNI INOSTROZA SEPULVEDA","JUAN ANGEL MANRIQUEZ MONTALVA","GONZALO ANDRES CORTES PARRAGUEZ","MATIAS PATRICIO JORQUERA SANTANDER","BASTIAN ISRAEL CARDENAS LEMUÑIR","VICENTE AGUSTIN CULACIATI HERNANDEZ","GERMAN PACHECO MURILLO","EDUARDO JOSE DIAZ MORANTES","WILSCONIDEL DAUSTKY YANEZ LITWIN"],
+    "Corporacion Administrativa Central": ["JORGE IGNACIO LOPEZ TORRES","MATIAS GIOVANNI INOSTROZA SEPULVEDA","JUAN ANGEL MANRIQUEZ MONTALVA","MATIAS PATRICIO JORQUERA SANTANDER","BASTIAN ISRAEL CARDENAS LEMUÑIR","VICENTE AGUSTIN CULACIATI HERNANDEZ","GERMAN PACHECO MURILLO","EDUARDO JOSE DIAZ MORANTES","WILSCONIDEL DAUSTKY YANEZ LITWIN"],
     "Corte Suprema De Justicia": ["ANGELICA VACCA", "JOSE MARRUFO"],
     "GENERAL": ["Técnico Externo", "Soporte Nivel 2"]
 };
@@ -696,7 +696,7 @@ function generateEmail() {
     // Copias según el proyecto HP
     const proyecto = (selectedTicketData.proyecto || "").toUpperCase();
     if (proyecto.includes("PJUD 4")) cc += "; carol.oteiza@hp.com";
-    else if (proyecto.includes("PJUD 5")) cc += "; carol.oteiza@hp.com";
+    else if (proyecto.includes("PJUD 5")) cc += "alejandro.ramos@hp.com; carol.oteiza@hp.com";
 
     const asunto = `Requerimiento ${selectedTicketData.num} - Coordinación SCO - Proyecto ${selectedTicketData.proyecto}`;
     const nombreCompleto = selectedTicketData.usuario || "Usuario";
@@ -1044,7 +1044,7 @@ function generarFormatoGuia(ticket) {
     
     const proyecto = (ticket.proyecto || "").toUpperCase();
     if (proyecto.includes("PJUD 4")) cc += "; carol.oteiza@hp.com";
-    else if (proyecto.includes("PJUD 5")) cc += "; carol.oteiza@hp.com";
+    else if (proyecto.includes("PJUD 5")) cc += "alejandro.ramos@hp.com; carol.oteiza@hp.com";
 
     const nombreUsuario = ticket.usuario ? ticket.usuario.split(' ')[0] : "Usuario";
     const asuntoRetiro = `Requerimiento ${ticket.num} - Retiro de Equipo Reportado, Proyecto ${ticket.proyecto}`;
@@ -1679,7 +1679,7 @@ async function generarReporteCambios() {
         cc = "frander.vindas@hp.com;j.marrufo@fcom.cl; juan.diaz@fcom.cl; jchavez_hp@pjud.cl;j.riffo@fcom.cl;s.valbuena@fcom.cl; s.guzman@fcom.cl; jmarrufo_hp@pjud.cl; svaldivieso_hp@pjud.cl; avacca_hp@pjud.cl; a.vacca@fcom.cl; c.zapata@fcom.cl";
         asunto = `Control de cambios SCO PJUD4-2 hasta el ${fechaFinFormato}`;
     } else {
-        para = "jorge.ceballos.de.la.carrera@hp.com; carol.oteiza@hp.com";
+        para = "alejandro.ramos@hp.com;jorge.ceballos.de.la.carrera@hp.com; carol.oteiza@hp.com";
         cc = "frander.vindas@hp.com;j.marrufo@fcom.cl; juan.diaz@fcom.cl; jchavez_hp@pjud.cl; s.guzman@fcom.cl; jmarrufo_hp@pjud.cl; svaldivieso_hp@pjud.cl; avacca_hp@pjud.cl; a.vacca@fcom.cl; c.zapata@fcom.cl; j.riffo@fcom.cl";
         asunto = `Control de cambios SCO PJUD5 hasta el ${fechaFinFormato}`;
     }
