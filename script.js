@@ -1186,7 +1186,7 @@ function generarInformativoTecnico() {
     const container = document.getElementById('info-result-container');
     const asunto = `Informativo Técnico - Actividades Coordinadas SCO PJUD`;
     const para = "j.santos@fcom.cl";
-    const cc = "c.zapata@fcom.cl;j.sanhueza@fcom.cl; e.suarez@fcom.cl; e.socorro@fcom.cl; l.torres@fcom.cl; juan.diaz@fcom.cl;  jchavez_hp@pjud.cl;  jmarrufo_hp@pjud.cl; f.solar@fcom.cl; svaldivieso_hp@pjud.cl; myabrudez_hp@pjud.cl; j.riffo@fcom.cl; a.vacca@fcom.cl";
+    const cc = "c.zapata@fcom.cl;j.sanhueza@fcom.cl; e.suarez@fcom.cl; e.socorro@fcom.cl; l.torres@fcom.cl; juan.diaz@fcom.cl;  jchavez_hp@pjud.cl;  jmarrufo_hp@pjud.cl; f.solar@fcom.cl; svaldivieso_hp@pjud.cl; m.yabrudez@fcom.cl; j.riffo@fcom.cl; a.vacca@fcom.cl";
 
     const hoy = new Date();
     const diaObjetivo = new Date(hoy);
@@ -1882,8 +1882,9 @@ function generarReporteAntivirus() {
     const selectProyectoAV = document.getElementById('av-filtro-proyecto');
     const filtroProyectoAV = selectProyectoAV ? selectProyectoAV.value : 'TODOS';
 
-    const para = "myabrudez_hp@pjud.cl"; 
-    const cc = "c.zapata@fcom.cl; j.santos@fcom.cl; jmarrufo_hp@pjud.cl; soporte@fcom.cl; a.vacca@fcom.cl";
+    // Mismos destinatarios que el reporte de Control de Cambios PJUD5
+    const para = "alejandro.ramos@hp.com;jorge.ceballos.de.la.carrera@hp.com; carol.oteiza@hp.com";
+    const cc = "frander.vindas@hp.com;j.marrufo@fcom.cl; juan.diaz@fcom.cl; jchavez_hp@pjud.cl; s.guzman@fcom.cl; jmarrufo_hp@pjud.cl; svaldivieso_hp@pjud.cl; avacca_hp@pjud.cl; a.vacca@fcom.cl; c.zapata@fcom.cl; j.riffo@fcom.cl";
 
     function parseDateSimple(dateStr) {
         if (!dateStr) return null;
@@ -1931,6 +1932,13 @@ function generarReporteAntivirus() {
         const tipoUpper = t.tipo ? t.tipo.toUpperCase() : "";
         if (!tipoUpper.includes("COMPUTADOR") && !tipoUpper.includes("NOTEBOOK")) return false;
 
+        // En modo semanal solo se conservan los registros cuya Solución Terreno sea MASTERIZACIÓN.
+        // En modo diario se mantienen todas las soluciones de terreno, como estaba originalmente.
+        if (modo === 'semana') {
+            const solucionUpper = t.solucion ? t.solucion.toUpperCase() : "";
+            if (!solucionUpper.includes("MASTERIZACIÓN") && !solucionUpper.includes("MASTERIZACION")) return false;
+        }
+
         if (filtroProyectoAV !== "TODOS") {
             const proyUpper = t.proyecto ? t.proyecto.toUpperCase() : "";
             if (!proyUpper.includes(filtroProyectoAV)) return false;
@@ -1949,11 +1957,14 @@ function generarReporteAntivirus() {
     });
 
     if (ticketsFiltrados.length === 0) {
-        showToast(`⚠️ No hay tickets de PC/Notebook finalizados para ${fechaFormat}.`);
+        const detalleFiltro = modo === 'semana' ? ' con Solución Terreno MASTERIZACIÓN' : '';
+        showToast(`⚠️ No hay tickets de PC/Notebook${detalleFiltro} finalizados para ${fechaFormat}.`);
         container.innerHTML = `<p style='text-align:center; color:#666; padding: 20px;'>Sin resultados para ${fechaFormat}.</p>`;
         container.classList.remove('hidden');
         return;
     }
+
+    const incluirColumnaFecha = (modo === 'semana');
 
     let filasHTML = "";
     ticketsFiltrados.forEach(t => {
@@ -1966,8 +1977,13 @@ function generarReporteAntivirus() {
         // Estilo de color para el Backup
         const backupStyle = t.backup === "SI" ? "color: #dc3545; font-weight: bold;" : "color: #28a745;";
 
+        const celdaFecha = incluirColumnaFecha
+            ? `<td style="padding: 5px; border: 1px solid #ccc; text-align:center; font-weight:bold; color:#014f8b;">${t.fechaFin ? t.fechaFin.split(' ')[0] : ""}</td>`
+            : "";
+
         filasHTML += `
             <tr style="border-bottom: 1px solid #ddd;">
+                ${celdaFecha}
                 <td style="padding: 5px; border: 1px solid #ccc;">${t.proyecto || ""}</td>
                 <td style="padding: 5px; border: 1px solid #ccc;">${t.num}</td>
                 <td style="padding: 5px; border: 1px solid #ccc;">${t.grupo || ""}</td>
@@ -1981,8 +1997,13 @@ function generarReporteAntivirus() {
         `;
     });
 
-    // Encabezado de tabla (agregamos columna BACKUP)
+    // Encabezado de tabla (agregamos columna BACKUP, y FECHA cuando el reporte es semanal)
+    const columnaFechaHeader = incluirColumnaFecha
+        ? `<th style="padding: 5px; border: 1px solid #ddd;">FECHA</th>`
+        : "";
+
     const headersHTML = `
+        ${columnaFechaHeader}
         <th style="padding: 5px; border: 1px solid #ddd;">PROYECTO</th>
         <th style="padding: 5px; border: 1px solid #ddd;">TK</th>
         <th style="padding: 5px; border: 1px solid #ddd;">GRUPO RESOLUTOR</th>
