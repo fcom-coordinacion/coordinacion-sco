@@ -383,9 +383,36 @@
 
                 <div id="tab-antivirus" class="tab-content hidden-content">
                     <div class="card">
-                        <p style="margin-bottom: 10px; color: #666;">Genera reporte de tickets <strong>FINALIZADOS</strong> de grupos <strong>SCO y RESIDENTES</strong> para un día específico.</p>
-                        <div class="coord-row-inline" style="background-color: #e3f2fd; padding: 15px; border-radius: 5px; border: 1px solid #90caf9; margin-bottom: 15px;">
-                            <div class="input-group-small" style="max-width: 200px;"><label><i class="far fa-calendar-alt"></i> Fecha del Reporte</label><input type="date" id="av-fecha-unica"></div>
+                        <p style="margin-bottom: 10px; color: #666;">Genera reporte de tickets <strong>FINALIZADOS</strong> de grupos <strong>SCO y RESIDENTES</strong> para un día específico o para una semana completa (Lunes a Viernes).</p>
+
+                        <div style="display: flex; gap: 20px; align-items: center; margin-bottom: 12px; background: #f8f9fa; padding: 10px 15px; border-radius: 5px; border: 1px solid #ddd;">
+                            <label style="font-weight: bold; color: #555; margin: 0;"><i class="fas fa-sliders-h"></i> Modo de Reporte:</label>
+                            <label style="display:flex; align-items:center; gap:5px; cursor:pointer; margin:0; font-weight: normal;">
+                                <input type="radio" name="av-modo" value="dia" checked onchange="toggleModoAntivirus()"> Diario
+                            </label>
+                            <label style="display:flex; align-items:center; gap:5px; cursor:pointer; margin:0; font-weight: normal;">
+                                <input type="radio" name="av-modo" value="semana" onchange="toggleModoAntivirus()"> Semanal (Lun-Vie)
+                            </label>
+                        </div>
+
+                        <div class="coord-row-inline" style="background-color: #e3f2fd; padding: 15px; border-radius: 5px; border: 1px solid #90caf9; margin-bottom: 15px; flex-wrap: wrap;">
+                            <div class="input-group-small" id="av-grupo-dia" style="max-width: 200px;"><label><i class="far fa-calendar-alt"></i> Fecha del Reporte</label><input type="date" id="av-fecha-unica"></div>
+
+                            <div class="input-group-small hidden" id="av-grupo-semana" style="max-width: 220px;">
+                                <label><i class="far fa-calendar-alt"></i> Semana del Reporte</label>
+                                <input type="week" id="av-semana-selector">
+                                <small id="av-semana-preview" style="display:block; color:#014f8b; font-weight:bold; margin-top:4px;"></small>
+                            </div>
+
+                            <div class="input-group-small" style="max-width: 200px;">
+                                <label><i class="fas fa-folder"></i> Proyecto</label>
+                                <select id="av-filtro-proyecto">
+                                    <option value="TODOS">Todos los Proyectos</option>
+                                    <option value="PJUD 4">PJUD 4</option>
+                                    <option value="PJUD 5">PJUD 5</option>
+                                </select>
+                            </div>
+
                             <div style="flex: 2; display: flex; align-items: flex-end; gap: 10px;">
                                 <button class="btn-primary" onclick="generarReporteAntivirus()"><i class="fas fa-filter"></i> Generar Reporte</button>
                                 <button class="btn-primary" onclick="copiarTablaAntivirus()" style="background-color: #198754; border-color: #198754;"><i class="fas fa-copy"></i> Copiar</button>
