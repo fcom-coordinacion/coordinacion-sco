@@ -1828,25 +1828,97 @@ function enviarYCopiar(para, cc, asunto, idElemento) {
 }
 
 // --- REPORTE: ANTIVIRUS ---
+
+// Alterna entre el selector diario y el selector semanal (Lun-Vie), manteniendo ambos disponibles.
+function toggleModoAntivirus() {
+    const radioSeleccionado = document.querySelector('input[name="av-modo"]:checked');
+    const modo = radioSeleccionado ? radioSeleccionado.value : 'dia';
+    const grupoDia = document.getElementById('av-grupo-dia');
+    const grupoSemana = document.getElementById('av-grupo-semana');
+    if (!grupoDia || !grupoSemana) return;
+
+    if (modo === 'semana') {
+        grupoDia.classList.add('hidden');
+        grupoSemana.classList.remove('hidden');
+    } else {
+        grupoDia.classList.remove('hidden');
+        grupoSemana.classList.add('hidden');
+    }
+}
+
+// Devuelve {lunes, viernes} como objetos Date a partir de un input type="week" (formato "YYYY-Www"), usando cálculo ISO 8601.
+function obtenerRangoSemanaLaboral(valorSemana) {
+    if (!valorSemana) return null;
+    const [anioStr, semanaStr] = valorSemana.split('-W');
+    const anio = parseInt(anioStr);
+    const semana = parseInt(semanaStr);
+    if (isNaN(anio) || isNaN(semana)) return null;
+
+    // El jueves de la semana 1 ISO siempre cae dentro de enero
+    const simple = new Date(anio, 0, 1 + (semana - 1) * 7);
+    const diaSemanaSimple = simple.getDay();
+    const inicioSemanaISO = new Date(simple);
+    if (diaSemanaSimple <= 4) {
+        inicioSemanaISO.setDate(simple.getDate() - simple.getDay() + 1);
+    } else {
+        inicioSemanaISO.setDate(simple.getDate() + 8 - simple.getDay());
+    }
+
+    const lunes = new Date(inicioSemanaISO);
+    lunes.setHours(0, 0, 0, 0);
+    const viernes = new Date(lunes);
+    viernes.setDate(lunes.getDate() + 4);
+    viernes.setHours(0, 0, 0, 0);
+
+    return { lunes, viernes };
+}
+
 function generarReporteAntivirus() {
     const container = document.getElementById('antivirus-result-container');
-    const inputFecha = document.getElementById('av-fecha-unica').value; 
 
-    if (!inputFecha) return showToast("⚠️ Por favor selecciona una fecha.");
+    const radioModo = document.querySelector('input[name="av-modo"]:checked');
+    const modo = radioModo ? radioModo.value : 'dia';
+
+    const selectProyectoAV = document.getElementById('av-filtro-proyecto');
+    const filtroProyectoAV = selectProyectoAV ? selectProyectoAV.value : 'TODOS';
 
     const para = "m.yabrudez@fcom.cl"; 
     const cc = "c.zapata@fcom.cl; j.santos@fcom.cl; jmarrufo_hp@pjud.cl; ´soporte@fcom.cl; a.vacca@fcom.cl";
-    
-    const [y, m, d] = inputFecha.split('-');
-    const fechaFormat = `${d}/${m}/${y}`;
-    const asunto = `Actividades de Cambios y Masterizaciones PC - ${fechaFormat}`;
-    const fechaSeleccionada = new Date(y, m - 1, d, 0, 0, 0);
 
     function parseDateSimple(dateStr) {
         if (!dateStr) return null;
         const parts = dateStr.trim().split(' ')[0].split(/[-/]/);
         if (parts.length !== 3) return null;
         return new Date(parts[2], parts[1] - 1, parts[0], 0, 0, 0);
+    }
+
+    const fmtDDMMYYYY = (dObj) => `${String(dObj.getDate()).padStart(2, '0')}/${String(dObj.getMonth() + 1).padStart(2, '0')}/${dObj.getFullYear()}`;
+
+    let fechaDesde, fechaHasta, fechaFormat;
+
+    if (modo === 'semana') {
+        const valorSemana = document.getElementById('av-semana-selector').value;
+        if (!valorSemana) return showToast("⚠️ Por favor selecciona una semana.");
+
+        const rango = obtenerRangoSemanaLaboral(valorSemana);
+        if (!rango) return showToast("⚠️ Semana inválida.");
+
+        fechaDesde = rango.lunes;
+        fechaHasta = rango.viernes;
+        fechaFormat = `Semana del ${fmtDDMMYYYY(fechaDesde)} al ${fmtDDMMYYYY(fechaHasta)}`;
+    } else {
+        const inputFecha = document.getElementById('av-fecha-unica').value; 
+        if (!inputFecha) return showToast("⚠️ Por favor selecciona una fecha.");
+
+        const [y, m, d] = inputFecha.split('-');
+        fechaFormat = `${d}/${m}/${y}`;
+        fechaDesde = new Date(y, m - 1, d, 0, 0, 0);
+        fechaHasta = new Date(y, m - 1, d, 0, 0, 0);
+    }
+
+    let asunto = `Actividades de Cambios y Masterizaciones PC - ${fechaFormat}`;
+    if (filtroProyectoAV !== "TODOS") {
+        asunto += ` - ${filtroProyectoAV}`;
     }
     
     const ticketsFiltrados = allTicketsList.filter(t => {
@@ -1859,14 +1931,26 @@ function generarReporteAntivirus() {
         const tipoUpper = t.tipo ? t.tipo.toUpperCase() : "";
         if (!tipoUpper.includes("COMPUTADOR") && !tipoUpper.includes("NOTEBOOK")) return false;
 
+        if (filtroProyectoAV !== "TODOS") {
+            const proyUpper = t.proyecto ? t.proyecto.toUpperCase() : "";
+            if (!proyUpper.includes(filtroProyectoAV)) return false;
+        }
+
         const fechaTicket = parseDateSimple(t.fechaFin);
         if (!fechaTicket) return false;
-        return fechaTicket.getTime() === fechaSeleccionada.getTime();
+
+        if (modo === 'semana') {
+            const diaSemana = fechaTicket.getDay(); // 0=Domingo, 6=Sabado
+            if (diaSemana === 0 || diaSemana === 6) return false; // Solo Lunes a Viernes
+            return fechaTicket.getTime() >= fechaDesde.getTime() && fechaTicket.getTime() <= fechaHasta.getTime();
+        } else {
+            return fechaTicket.getTime() === fechaDesde.getTime();
+        }
     });
 
     if (ticketsFiltrados.length === 0) {
-        showToast(`⚠️ No hay tickets de PC/Notebook finalizados para el ${fechaFormat}.`);
-        container.innerHTML = "<p style='text-align:center; color:#666; padding: 20px;'>Sin resultados para la fecha seleccionada.</p>";
+        showToast(`⚠️ No hay tickets de PC/Notebook finalizados para ${fechaFormat}.`);
+        container.innerHTML = `<p style='text-align:center; color:#666; padding: 20px;'>Sin resultados para ${fechaFormat}.</p>`;
         container.classList.remove('hidden');
         return;
     }
@@ -1929,6 +2013,10 @@ function generarReporteAntivirus() {
         </div>
     `;
 
+    const textoIntroCorreoAV = modo === 'semana'
+        ? `Envío listado de los requerimientos gestionados durante la ${fechaFormat.charAt(0).toLowerCase() + fechaFormat.slice(1)} (Lunes a Viernes), que involucraron Cambio o masterización de equipo por las areas de SCO o residencias.`
+        : `Envío listado de los requerimientos gestionados el día ${fechaFormat}, que involucraron Cambio o masterización de equipo por las areas de SCO o residencias.`;
+
     const correoHTML = `
         <div class="card" style="border: none; padding: 0; background: transparent;">
             <div class="pjud-header-toggle" onclick="toggleSection('av-email-body', 'icon-av-email')" style="border-top: 4px solid #6c757d;">
@@ -1953,7 +2041,7 @@ function generarReporteAntivirus() {
                 </div>
                 <div id="av-email-content" style="background: white; padding: 15px; border: 1px solid #ccc; font-family: Calibri, sans-serif; font-size: 11pt; color: #000;">
                     <p>Miguel<br>Buenos días</p><br>
-                    <p>Envío listado de los requerimientos gestionados el día de ayer, que involucraron Cambio o masterización de equipo por las areas de SCO o residencias.</p>
+                    <p>${textoIntroCorreoAV}</p>
                     <br><br>
                     <table style="border-collapse: collapse; width: 100%; border: 1px solid #999; font-family: Calibri, sans-serif; font-size: 10pt;">
                         <thead style="background-color: #e6e6e6;">
@@ -2121,6 +2209,21 @@ function toggleSecret(elementId, realValue) {
 
 document.addEventListener('DOMContentLoaded', () => {
     cargarBibliotecaEnlaces();
+});
+
+// Muestra en vivo el rango Lunes-Viernes de la semana elegida en el Reporte Antivirus
+document.addEventListener('DOMContentLoaded', () => {
+    const semanaInputAV = document.getElementById('av-semana-selector');
+    if (semanaInputAV) {
+        semanaInputAV.addEventListener('change', () => {
+            const rango = obtenerRangoSemanaLaboral(semanaInputAV.value);
+            const preview = document.getElementById('av-semana-preview');
+            if (rango && preview) {
+                const fmt = (d) => `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+                preview.textContent = `Del ${fmt(rango.lunes)} (Lun) al ${fmt(rango.viernes)} (Vie)`;
+            }
+        });
+    }
 });
 
 // --- REPORTE: GUÍAS PENDIENTES ---
