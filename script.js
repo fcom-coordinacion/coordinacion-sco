@@ -129,7 +129,7 @@ const TECNICOS_POR_JURISDICCION = {
     "Corte De Apelaciones De La Serena": ["BORIS  REINOSO ", "IGNACIO  SOTOMAYOR "],
     "Corte De Apelaciones De Valparaiso": ["MAURICIO  TOLEDO ","MATIAS  INOSTROZA ","JUAN  MANRIQUEZ ","BASTIAN  CARDENAS ","VICENTE  CULACIATI ","GERMAN PACHECO ","EDUARDO  DIAZ ","WILSCONIDEL DAUSTKY "],
     "Corte De Apelaciones De Santiago": ["MATIAS  INOSTROZA ","JUAN  MANRIQUEZ ","BASTIAN  CARDENAS ","VICENTE  CULACIATI ","GERMAN PACHECO ","EDUARDO  DIAZ ","WILSCONIDEL DAUSTKY "],
-    "Corte De Apelaciones De San ": ["MATIAS  INOSTROZA ","JUAN  MANRIQUEZ ","BASTIAN  CARDENAS ","VICENTE  CULACIATI ","GERMAN PACHECO ","EDUARDO  DIAZ ","WILSCONIDEL DAUSTKY "],
+    "Corte De Apelaciones De San Miguel": ["MATIAS  INOSTROZA ","JUAN  MANRIQUEZ ","BASTIAN  CARDENAS ","VICENTE  CULACIATI ","GERMAN PACHECO ","EDUARDO  DIAZ ","WILSCONIDEL DAUSTKY "],
     "Corte De Apelaciones De Rancagua": ["MATIAS  INOSTROZA ","JUAN  MANRIQUEZ ","BASTIAN  CARDENAS ","VICENTE  CULACIATI ","GERMAN PACHECO ","EDUARDO  DIAZ ","WILSCONIDEL DAUSTKY "],
     "Corte De Apelaciones De Talca": ["CRISTIAN  CORDOVA "],
     "Corte De Apelaciones De Chillan": ["MATIAS ALBURQUENQUE "],
@@ -155,7 +155,7 @@ const CORREOS_JURISDICCION = {
     "Corte De Apelaciones De La Serena": "rsuarez@pjud.cl",
     "Corte De Apelaciones De Valparaiso": "chernandezg@pjud.cl",
     "Corte De Apelaciones De Santiago": "castudillo@pjud.cl",
-    "Corte De Apelaciones De San ": "hacevedo@pjud.cl",
+    "Corte De Apelaciones De San Miguel": "hacevedo@pjud.cl",
     "Corte De Apelaciones De Rancagua": "matoro@pjud.cl;informatica_zonalrancagua@pjud.cl",
     "Corte De Apelaciones De Talca": "maescobar@pjud.cl",
     "Corte De Apelaciones De Chillan": "jparavena@pjud.cl",
@@ -1884,7 +1884,7 @@ function generarReporteAntivirus() {
 
     // Mismos destinatarios que el reporte de Control de Cambios PJUD5
     const para = "alejandro.ramos@hp.com;jorge.ceballos.de.la.carrera@hp.com; carol.oteiza@hp.com";
-    const cc = "juan.diaz@fcom.cl; jmarrufo_hp@pjud.cl; svaldivieso_hp@pjud.cl; avacca_hp@pjud.cl; a.vacca@fcom.cl; c.zapata@fcom.cl;
+    const cc = "j.marrufo@fcom.cl; jmarrufo_hp@pjud.cl; avacca_hp@pjud.cl; a.vacca@fcom.cl; c.zapata@fcom.cl";
 
     function parseDateSimple(dateStr) {
         if (!dateStr) return null;
@@ -1968,15 +1968,6 @@ function generarReporteAntivirus() {
 
     let filasHTML = "";
     ticketsFiltrados.forEach(t => {
-        let serieDespachada = "";
-        const esCambio = (t.solucion === "CAMBIO EQUIPO" && t.backup === "SI");
-        if (esCambio) {
-            serieDespachada = t.despachosRaw ? t.despachosRaw.trim() : "Pendiente Validar";
-        }
-
-        // Estilo de color para el Backup
-        const backupStyle = t.backup === "SI" ? "color: #dc3545; font-weight: bold;" : "color: #28a745;";
-
         const celdaFecha = incluirColumnaFecha
             ? `<td style="padding: 5px; border: 1px solid #ccc; text-align:center; font-weight:bold; color:#014f8b;">${t.fechaFin ? t.fechaFin.split(' ')[0] : ""}</td>`
             : "";
@@ -1990,14 +1981,12 @@ function generarReporteAntivirus() {
                 <td style="padding: 5px; border: 1px solid #ccc;">${t.tipo || ""}</td>
                 <td style="padding: 5px; border: 1px solid #ccc;">${t.solucion || ""}</td>
                 <td style="padding: 5px; border: 1px solid #ccc;">${t.serie || ""}</td>
-                <td style="padding: 5px; border: 1px solid #ccc;">${serieDespachada}</td>
-                <td style="padding: 5px; border: 1px solid #ccc; text-align:center; ${backupStyle}">${t.backup || "NO"}</td>
                 <td style="padding: 5px; border: 1px solid #ccc;">${t.ip || ""}</td>
             </tr>
         `;
     });
 
-    // Encabezado de tabla (agregamos columna BACKUP, y FECHA cuando el reporte es semanal)
+    // Encabezado de tabla (FECHA solo cuando el reporte es semanal; se quitaron BACKUP y SERIE DESPACHADA)
     const columnaFechaHeader = incluirColumnaFecha
         ? `<th style="padding: 5px; border: 1px solid #ddd;">FECHA</th>`
         : "";
@@ -2010,8 +1999,6 @@ function generarReporteAntivirus() {
         <th style="padding: 5px; border: 1px solid #ddd;">TIPO</th>
         <th style="padding: 5px; border: 1px solid #ddd;">SOLUCION TERRENO</th>
         <th style="padding: 5px; border: 1px solid #ddd;">SERIE REPORTADA</th>
-        <th style="padding: 5px; border: 1px solid #ddd;">SERIE DESPACHADA</th>
-        <th style="padding: 5px; border: 1px solid #ddd;">BACKUP</th>
         <th style="padding: 5px; border: 1px solid #ddd;">IP</th>
     `;
 
@@ -2035,7 +2022,7 @@ function generarReporteAntivirus() {
     `;
 
     const textoIntroCorreoAV = modo === 'semana'
-        ? `Envío listado de los requerimientos gestionados durante la ${fechaFormat.charAt(0).toLowerCase() + fechaFormat.slice(1)} (Lunes a Viernes), que involucraron masterización de equipo por las areas de SCO o residencias.`
+        ? `Envío listado de los requerimientos gestionados durante la ${fechaFormat.charAt(0).toLowerCase() + fechaFormat.slice(1)} (Lunes a Viernes), que involucraron Masterización de equipo (No se incluyen cambios) por las areas de SCO o residencias.`
         : `Envío listado de los requerimientos gestionados el día ${fechaFormat}, que involucraron Cambio o masterización de equipo por las areas de SCO o residencias.`;
 
     const correoHTML = `
@@ -2061,7 +2048,7 @@ function generarReporteAntivirus() {
                     <span id="av-sub">${asunto}</span>
                 </div>
                 <div id="av-email-content" style="background: white; padding: 15px; border: 1px solid #ccc; font-family: Calibri, sans-serif; font-size: 11pt; color: #000;">
-                    <p>Miguel<br>Buenos días</p><br>
+                    <p>Alejandro<br>Buenos días</p><br>
                     <p>${textoIntroCorreoAV}</p>
                     <br><br>
                     <table style="border-collapse: collapse; width: 100%; border: 1px solid #999; font-family: Calibri, sans-serif; font-size: 10pt;">
