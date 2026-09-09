@@ -1884,7 +1884,7 @@ function generarReporteAntivirus() {
 
     // Mismos destinatarios que el reporte de Control de Cambios PJUD5
     const para = "alejandro.ramos@hp.com;jorge.ceballos.de.la.carrera@hp.com; carol.oteiza@hp.com";
-    const cc = "frander.vindas@hp.com;j.marrufo@fcom.cl; juan.diaz@fcom.cl; jchavez_hp@pjud.cl; s.guzman@fcom.cl; jmarrufo_hp@pjud.cl; svaldivieso_hp@pjud.cl; avacca_hp@pjud.cl; a.vacca@fcom.cl; c.zapata@fcom.cl; j.riffo@fcom.cl";
+    const cc = "juan.diaz@fcom.cl; jmarrufo_hp@pjud.cl; svaldivieso_hp@pjud.cl; avacca_hp@pjud.cl; a.vacca@fcom.cl; c.zapata@fcom.cl;
 
     function parseDateSimple(dateStr) {
         if (!dateStr) return null;
@@ -2035,7 +2035,7 @@ function generarReporteAntivirus() {
     `;
 
     const textoIntroCorreoAV = modo === 'semana'
-        ? `Envío listado de los requerimientos gestionados durante la ${fechaFormat.charAt(0).toLowerCase() + fechaFormat.slice(1)} (Lunes a Viernes), que involucraron Cambio o masterización de equipo por las areas de SCO o residencias.`
+        ? `Envío listado de los requerimientos gestionados durante la ${fechaFormat.charAt(0).toLowerCase() + fechaFormat.slice(1)} (Lunes a Viernes), que involucraron masterización de equipo por las areas de SCO o residencias.`
         : `Envío listado de los requerimientos gestionados el día ${fechaFormat}, que involucraron Cambio o masterización de equipo por las areas de SCO o residencias.`;
 
     const correoHTML = `
