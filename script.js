@@ -1882,9 +1882,13 @@ function generarReporteAntivirus() {
     const selectProyectoAV = document.getElementById('av-filtro-proyecto');
     const filtroProyectoAV = selectProyectoAV ? selectProyectoAV.value : 'TODOS';
 
-    // Mismos destinatarios que el reporte de Control de Cambios PJUD5
-    const para = "alejandro.ramos@hp.com;jorge.ceballos.de.la.carrera@hp.com; carol.oteiza@hp.com";
-    const cc = "j.marrufo@fcom.cl; jmarrufo_hp@pjud.cl; avacca_hp@pjud.cl; a.vacca@fcom.cl; c.zapata@fcom.cl";
+    // Diario: destinatarios originales. Semanal: mismos destinatarios que Control de Cambios PJUD5 (ya filtrados).
+    const para = (modo === 'semana')
+        ? "alejandro.ramos@hp.com;jorge.ceballos.de.la.carrera@hp.com; carol.oteiza@hp.com"
+        : "m.yabrudez@fcom.cl";
+    const cc = (modo === 'semana')
+        ? "j.marrufo@fcom.cl; jmarrufo_hp@pjud.cl; avacca_hp@pjud.cl; a.vacca@fcom.cl; c.zapata@fcom.cl"
+        : "c.zapata@fcom.cl; j.santos@fcom.cl; jmarrufo_hp@pjud.cl; ´soporte@fcom.cl; a.vacca@fcom.cl";
 
     function parseDateSimple(dateStr) {
         if (!dateStr) return null;
@@ -1965,12 +1969,26 @@ function generarReporteAntivirus() {
     }
 
     const incluirColumnaFecha = (modo === 'semana');
+    const incluirColumnasBackup = (modo !== 'semana'); // Solo el diario conserva Serie Despachada y Backup
 
     let filasHTML = "";
     ticketsFiltrados.forEach(t => {
         const celdaFecha = incluirColumnaFecha
             ? `<td style="padding: 5px; border: 1px solid #ccc; text-align:center; font-weight:bold; color:#014f8b;">${t.fechaFin ? t.fechaFin.split(' ')[0] : ""}</td>`
             : "";
+
+        let celdasBackup = "";
+        if (incluirColumnasBackup) {
+            let serieDespachada = "";
+            const esCambio = (t.solucion === "CAMBIO EQUIPO" && t.backup === "SI");
+            if (esCambio) {
+                serieDespachada = t.despachosRaw ? t.despachosRaw.trim() : "Pendiente Validar";
+            }
+            const backupStyle = t.backup === "SI" ? "color: #dc3545; font-weight: bold;" : "color: #28a745;";
+            celdasBackup = `
+                <td style="padding: 5px; border: 1px solid #ccc;">${serieDespachada}</td>
+                <td style="padding: 5px; border: 1px solid #ccc; text-align:center; ${backupStyle}">${t.backup || "NO"}</td>`;
+        }
 
         filasHTML += `
             <tr style="border-bottom: 1px solid #ddd;">
@@ -1980,15 +1998,19 @@ function generarReporteAntivirus() {
                 <td style="padding: 5px; border: 1px solid #ccc;">${t.grupo || ""}</td>
                 <td style="padding: 5px; border: 1px solid #ccc;">${t.tipo || ""}</td>
                 <td style="padding: 5px; border: 1px solid #ccc;">${t.solucion || ""}</td>
-                <td style="padding: 5px; border: 1px solid #ccc;">${t.serie || ""}</td>
+                <td style="padding: 5px; border: 1px solid #ccc;">${t.serie || ""}</td>${celdasBackup}
                 <td style="padding: 5px; border: 1px solid #ccc;">${t.ip || ""}</td>
             </tr>
         `;
     });
 
-    // Encabezado de tabla (FECHA solo cuando el reporte es semanal; se quitaron BACKUP y SERIE DESPACHADA)
+    // Encabezado de tabla (FECHA solo en semanal; SERIE DESPACHADA y BACKUP solo en diario)
     const columnaFechaHeader = incluirColumnaFecha
         ? `<th style="padding: 5px; border: 1px solid #ddd;">FECHA</th>`
+        : "";
+    const columnasBackupHeader = incluirColumnasBackup
+        ? `<th style="padding: 5px; border: 1px solid #ddd;">SERIE DESPACHADA</th>
+        <th style="padding: 5px; border: 1px solid #ddd;">BACKUP</th>`
         : "";
 
     const headersHTML = `
@@ -1998,7 +2020,7 @@ function generarReporteAntivirus() {
         <th style="padding: 5px; border: 1px solid #ddd;">GRUPO RESOLUTOR</th>
         <th style="padding: 5px; border: 1px solid #ddd;">TIPO</th>
         <th style="padding: 5px; border: 1px solid #ddd;">SOLUCION TERRENO</th>
-        <th style="padding: 5px; border: 1px solid #ddd;">SERIE REPORTADA</th>
+        <th style="padding: 5px; border: 1px solid #ddd;">SERIE REPORTADA</th>${columnasBackupHeader}
         <th style="padding: 5px; border: 1px solid #ddd;">IP</th>
     `;
 
@@ -2020,6 +2042,8 @@ function generarReporteAntivirus() {
             </div>
         </div>
     `;
+
+    const nombreSaludoAV = (modo === 'semana') ? "Alejandro" : "Miguel";
 
     const textoIntroCorreoAV = modo === 'semana'
         ? `Envío listado de los requerimientos gestionados durante la ${fechaFormat.charAt(0).toLowerCase() + fechaFormat.slice(1)} (Lunes a Viernes), que involucraron Masterización de equipo (No se incluyen cambios) por las areas de SCO o residencias.`
@@ -2048,7 +2072,7 @@ function generarReporteAntivirus() {
                     <span id="av-sub">${asunto}</span>
                 </div>
                 <div id="av-email-content" style="background: white; padding: 15px; border: 1px solid #ccc; font-family: Calibri, sans-serif; font-size: 11pt; color: #000;">
-                    <p>Alejandro<br>Buenos días</p><br>
+                    <p>${nombreSaludoAV}<br>Buenos días</p><br>
                     <p>${textoIntroCorreoAV}</p>
                     <br><br>
                     <table style="border-collapse: collapse; width: 100%; border: 1px solid #999; font-family: Calibri, sans-serif; font-size: 10pt;">
